@@ -42,7 +42,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <AuthGuard>
       <div className="min-h-screen bg-background">
         {/* Header */}
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <header className="sticky px-4 mx-auto top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container mx-auto flex h-16 items-center justify-between">
             {/* Logo */}
             <Link href="/feed" className="flex items-center space-x-2">
@@ -125,7 +125,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </header>
 
         {/* Main Content */}
-        <main className="container mx-auto py-6">{children}</main>
+        <main className="container mx-auto py-6 px-4 pb-32">{children}</main>
 
         {/* Mobile Navigation */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t">
