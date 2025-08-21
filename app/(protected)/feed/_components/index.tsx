@@ -1,15 +1,14 @@
 "use client";
 
 import { useState } from "react";
+
+import { CreatePostForm } from "@/components/create-post-form";
+import { PostCard } from "@/components/post-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Heart, TrendingUp, Clock, Users, UserPlus } from "lucide-react";
-import { CreatePostForm } from "@/components/create-post-form";
-import { PostCard } from "@/components/post-card";
 
-
-// Mock data for posts
 const mockPosts = [
   {
     id: "1",
@@ -22,7 +21,11 @@ const mockPosts = [
     },
     content:
       "Just had my monthly check-up and my hemoglobin levels are stable! Feeling grateful for this community's support during my tough days. Remember, we're stronger together! 💪",
-    image: null,
+    images: [
+      "/placeholder.svg?height=400&width=600",
+      "/placeholder.svg?height=400&width=600",
+    ],
+    group: { id: "nigeria-warriors", name: "Nigeria Warriors" },
     createdAt: new Date("2024-01-15T10:30:00Z"),
     likes: 24,
     comments: 8,
@@ -39,7 +42,12 @@ const mockPosts = [
     },
     content:
       "Sharing my pain management routine that's been working well: staying hydrated, gentle yoga, and meditation. What works for you all?",
-    image: null,
+    images: [
+      "/placeholder.svg?height=400&width=600",
+      "/placeholder.svg?height=400&width=600",
+      "/placeholder.svg?height=400&width=600",
+    ],
+    group: null,
     createdAt: new Date("2024-01-14T15:45:00Z"),
     likes: 18,
     comments: 12,
@@ -56,7 +64,8 @@ const mockPosts = [
     },
     content:
       "As a caregiver to my daughter with SCD, I want to thank this community for all the insights and emotional support. You've helped me become a better advocate for her.",
-    image: null,
+    images: [],
+    group: { id: "caregivers-support", name: "Caregivers Support" },
     createdAt: new Date("2024-01-13T09:20:00Z"),
     likes: 31,
     comments: 15,
@@ -73,7 +82,8 @@ const mockPosts = [
     },
     content:
       "Reminder: Cold weather can trigger sickle cell crises. Stay warm, dress in layers, and don't hesitate to seek medical attention if you feel a crisis coming on. Prevention is key! 🩺",
-    image: null,
+    images: ["/placeholder.svg?height=400&width=600"],
+    group: null,
     createdAt: new Date("2024-01-12T14:20:00Z"),
     likes: 42,
     comments: 6,
@@ -90,7 +100,13 @@ const mockPosts = [
     },
     content:
       "Started a new job this week and was nervous about disclosing my condition. My manager was so understanding and supportive! There are good people out there. 🌟",
-    image: null,
+    images: [
+      "/placeholder.svg?height=400&width=600",
+      "/placeholder.svg?height=400&width=600",
+      "/placeholder.svg?height=400&width=600",
+      "/placeholder.svg?height=400&width=600",
+    ],
+    group: { id: "young-adults-scd", name: "Young Adults with SCD" },
     createdAt: new Date("2024-01-11T11:15:00Z"),
     likes: 28,
     comments: 9,
@@ -107,7 +123,14 @@ const mockPosts = [
     },
     content:
       "Celebrating 6 months crisis-free! My secret: consistent medication, regular exercise (swimming is my favorite), and this amazing community for mental support. Keep fighting! 🏊‍♂️",
-    image: null,
+    images: [
+      "/placeholder.svg?height=400&width=600",
+      "/placeholder.svg?height=400&width=600",
+      "/placeholder.svg?height=400&width=600",
+      "/placeholder.svg?height=400&width=600",
+      "/placeholder.svg?height=400&width=600",
+    ],
+    group: { id: "young-adults-scd", name: "Young Adults with SCD" },
     createdAt: new Date("2024-01-10T16:30:00Z"),
     likes: 35,
     comments: 11,
@@ -124,7 +147,11 @@ const mockPosts = [
     },
     content:
       "My son just got accepted to university! He was worried about managing his SCD while studying, but we've created a great support plan. Dreams don't have to stop because of sickle cell! 🎓",
-    image: null,
+    images: [
+      "/placeholder.svg?height=400&width=600",
+      "/placeholder.svg?height=400&width=600",
+    ],
+    group: { id: "caregivers-support", name: "Caregivers Support" },
     createdAt: new Date("2024-01-09T13:45:00Z"),
     likes: 47,
     comments: 18,
@@ -141,7 +168,12 @@ const mockPosts = [
     },
     content:
       "Nutrition tip: I've been adding more leafy greens and fruits rich in folate to my diet. My energy levels have improved significantly! What foods help you feel your best?",
-    image: null,
+    images: [
+      "/placeholder.svg?height=400&width=600",
+      "/placeholder.svg?height=400&width=600",
+      "/placeholder.svg?height=400&width=600",
+    ],
+    group: null,
     createdAt: new Date("2024-01-08T08:20:00Z"),
     likes: 22,
     comments: 14,
@@ -180,23 +212,14 @@ export function Feed() {
     );
   };
 
-  // Filtering logic for different tabs
   const getFilteredPosts = () => {
     let filteredPosts = posts;
 
     switch (activeTab) {
       case "my-groups":
-        // Filter posts from users in groups the current user has joined
-        filteredPosts = posts.filter((post) =>
-          userJoinedGroups.some(
-            (group) =>
-              group.toLowerCase().includes(post.author.country.toLowerCase()) ||
-              (post.author.genotype === "Caregiver" &&
-                group.includes("Caregivers")) ||
-              (post.author.genotype !== "Healthcare Provider" &&
-                post.author.genotype !== "Caregiver" &&
-                group.includes("Young Adults"))
-          )
+        // Filter posts that were made in groups the user has joined
+        filteredPosts = posts.filter(
+          (post) => post.group && userJoinedGroups.includes(post.group.name)
         );
         break;
       case "following":
