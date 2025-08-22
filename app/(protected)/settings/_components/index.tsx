@@ -25,7 +25,6 @@ import { CountrySelect } from "@/components/ui/country-select";
 import { useAuth } from "@/context/authContext";
 import { authService } from "@/lib/supabase/service/auth-service";
 import { toast } from "sonner";
-import FullScreenLoader from "@/components/ui/full-screen-loader";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
 
 interface ProfileFormData {
