@@ -3,7 +3,10 @@
 import type React from "react";
 
 import { AuthProvider} from "@/context/authContext";
-import AppLayout from "@/components/layout/app-layout";
+import AppLayout from "@/components/layouts/app-layout";
+import { Toaster } from "@/components/ui/sonner";
+import { ReactQueryProvider } from "@/components/layouts/react-query-provider";
+
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -13,7 +16,10 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
 
   return (
     <AuthProvider>
-     <AppLayout>{children}</AppLayout>
+      <ReactQueryProvider>
+      <AppLayout>{children}</AppLayout>
+      <Toaster richColors position="bottom-center" />
+      </ReactQueryProvider>
     </AuthProvider>
   );
 }

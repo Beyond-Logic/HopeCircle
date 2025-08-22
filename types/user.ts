@@ -5,6 +5,7 @@ export interface UserProfile {
   id: string;
   first_name: string;
   last_name: string;
+  username: string;
   genotype: string;
   country: string;
   avatar_url: string | null;

@@ -61,11 +61,51 @@ export const authService = {
     // maybeSingle returns null if no row exists instead of throwing PGRST116
     return {
       user,
-      profile: profile as UserProfile ?? null,
+      profile: (profile as UserProfile) ?? null,
       error: profileError ?? null,
     };
   },
-  
+
+  // In auth-service.ts
+
+  async getUserByUsername(username: string) {
+    if (!username)
+      return { user: null, profile: null, error: "No username provided" };
+
+    const cleanUsername = username.trim();
+
+    const { data: profile, error: profileError } = await supabase
+      .from("users")
+      .select("*")
+      .ilike("username", cleanUsername) // case-insensitive
+      .maybeSingle();
+
+    if (!profile) {
+      return {
+        user: null,
+        profile: null,
+        error: profileError ?? "User not found",
+      };
+    }
+
+    const user = {
+      id: profile.id,
+      username: profile.username,
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      avatar_url: profile.avatar_url,
+      role: profile.role,
+      status: profile.status,
+      created_at: profile.created_at,
+      updated_at: profile.updated_at,
+    };
+
+    return {
+      user: user ?? null,
+      profile: profile as UserProfile,
+      error: profileError || null,
+    };
+  },
   // Reset password
   async resetPassword(email: string) {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -95,10 +135,13 @@ export const authService = {
   // Create or update user profile
   async upsertUserProfile(profileData: {
     id: string; // the auth user id (foreign key in your users table)
-    firstName: string;
-    lastName: string;
+    username: string; // <- new field for username
+    first_name: string;
+    last_name: string;
     genotype: string;
     country: string;
+    bio?: string;
+    avatar_url?: string;
     role?: string;
   }) {
     // Use Supabase's `upsert` which will insert if not exists, update if exists
@@ -107,11 +150,14 @@ export const authService = {
       .upsert(
         {
           id: profileData.id,
-          first_name: profileData.firstName,
-          last_name: profileData.lastName,
+          username: profileData.username, // <- include username in upsert
+          first_name: profileData.first_name,
+          last_name: profileData.last_name,
           genotype: profileData.genotype,
           country: profileData.country,
           role: profileData.role,
+          bio: profileData.bio,
+          avatar_url: profileData.avatar_url,
         },
         { onConflict: "id" } // <- ensures uniqueness by id
       )
@@ -119,5 +165,66 @@ export const authService = {
       .single();
 
     return { data, error };
+  },
+
+  // Upload avatar to Supabase Storage
+  async uploadAvatar(file: File, userId: string) {
+    if (!file) throw new Error("No file provided");
+    if (file.size > 1024 * 1024) throw new Error("File size exceeds 1MB");
+
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${userId}.${fileExt}`;
+
+    const { error } = await supabase.storage
+      .from("avatars")
+      .upload(fileName, file, { upsert: true });
+
+    if (error) throw error;
+
+    // Return the object key, NOT the signed URL
+    return fileName;
+  },
+
+  // Generate a signed URL on demand
+  async getAvatarUrl(fileName: string, expiresInSeconds = 3600) {
+    if (!fileName) return null;
+
+    const { data, error } = await supabase.storage
+      .from("avatars")
+      .createSignedUrl(fileName, expiresInSeconds);
+
+    if (error) throw error;
+    return data?.signedUrl ?? null;
+  },
+
+  // Delete avatar both from Storage and from user profile
+  async deleteAvatar(fileName: string, userId?: string) {
+    if (!fileName) throw new Error("No file provided to delete");
+
+    // 1️⃣ Delete from Supabase Storage
+    const { data: storageData, error: storageError } = await supabase.storage
+      .from("avatars")
+      .remove([fileName]);
+
+    if (storageError) throw storageError;
+
+    // 2️⃣ Remove avatar_url from user profile if userId provided
+    let profileData = null;
+    let profileError = null;
+    if (userId) {
+      const { data, error } = await supabase
+        .from("users")
+        .update({ avatar_url: null })
+        .eq("id", userId)
+        .select()
+        .single();
+
+      profileData = data;
+      profileError = error;
+
+      if (profileError) throw profileError;
+    }
+
+    return { storageData, profileData, error: storageError || profileError };
   },
 };

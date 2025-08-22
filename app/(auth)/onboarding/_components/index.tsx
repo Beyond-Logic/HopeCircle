@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
@@ -16,10 +17,13 @@ import {
 import { Heart } from "lucide-react";
 import { authService } from "@/lib/supabase/service/auth-service";
 import { useAuth } from "@/context/authContext";
+import { CountrySelect } from "@/components/ui/country-select";
+import { genotypes } from "@/lib/constants/genotypes";
 
 interface OnboardingFormData {
-  firstName: string;
-  lastName: string;
+  username: string;
+  first_name: string;
+  last_name: string;
   genotype: string;
   country: string;
   role: string;
@@ -34,20 +38,21 @@ export function Onboarding() {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<OnboardingFormData>();
 
   const onSubmit = async (data: OnboardingFormData) => {
     setIsLoading(true);
     try {
-      if (!user?.id) {
-        throw new Error("User not authenticated");
-      }
+      if (!user?.id) throw new Error("User not authenticated");
+
       await authService.upsertUserProfile({
         ...data,
         id: user.id,
         role: "user",
       });
+
       router.push("/feed");
     } catch (error) {
       console.error("Onboarding error:", error);
@@ -55,32 +60,6 @@ export function Onboarding() {
       setIsLoading(false);
     }
   };
-
-  const genotypes = [
-    { value: "SS", label: "SS - Sickle Cell Anemia" },
-    { value: "SC", label: "SC - Sickle Cell Disease" },
-    { value: "AS", label: "AS - Sickle Cell Trait" },
-    { value: "AA", label: "AA - Normal" },
-    { value: "other", label: "Other" },
-  ];
-
-  const countries = [
-    { value: "nigeria", label: "Nigeria" },
-    { value: "usa", label: "United States" },
-    { value: "uk", label: "United Kingdom" },
-    { value: "ghana", label: "Ghana" },
-    { value: "kenya", label: "Kenya" },
-    { value: "jamaica", label: "Jamaica" },
-    { value: "brazil", label: "Brazil" },
-    { value: "other", label: "Other" },
-  ];
-
-  // const roles = [
-  //   { value: "patient", label: "Person with Sickle Cell" },
-  //   { value: "caregiver", label: "Caregiver/Family Member" },
-  //   { value: "healthcare", label: "Healthcare Provider" },
-  //   { value: "advocate", label: "Advocate/Supporter" },
-  // ];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted flex items-center justify-center px-4 py-12">
@@ -97,19 +76,20 @@ export function Onboarding() {
 
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* First + Last Name */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="firstName">First Name</Label>
                 <Input
                   id="firstName"
                   type="text"
-                  {...register("firstName", {
+                  {...register("first_name", {
                     required: "First name is required",
                   })}
                 />
-                {errors.firstName && (
+                {errors.first_name && (
                   <p className="text-sm text-destructive mt-1">
-                    {errors.firstName.message}
+                    {errors.first_name.message}
                   </p>
                 )}
               </div>
@@ -118,21 +98,49 @@ export function Onboarding() {
                 <Input
                   id="lastName"
                   type="text"
-                  {...register("lastName", {
+                  {...register("last_name", {
                     required: "Last name is required",
                   })}
                 />
-                {errors.lastName && (
+                {errors.last_name && (
                   <p className="text-sm text-destructive mt-1">
-                    {errors.lastName.message}
+                    {errors.last_name.message}
                   </p>
                 )}
               </div>
             </div>
 
+            {/* Username */}
+            <div>
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                // placeholder="Username"
+                {...register("username", {
+                  required: "Username is required",
+                  minLength: {
+                    value: 3,
+                    message: "Username must be at least 3 characters",
+                  },
+                  pattern: {
+                    value: /^[a-zA-Z0-9_]+$/,
+                    message:
+                      "Username can only contain letters, numbers, and underscores",
+                  },
+                })}
+              />
+              {errors.username && (
+                <p className="text-sm text-destructive mt-1">
+                  {errors.username.message}
+                </p>
+              )}
+            </div>
             {/* Genotype */}
             <div>
-              <Label htmlFor="genotype">Genotype</Label>
+              <Label htmlFor="genotype" className="mb-2 ">
+                Genotype
+              </Label>
               <Select onValueChange={(value) => setValue("genotype", value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select your genotype" />
@@ -157,22 +165,13 @@ export function Onboarding() {
                 </p>
               )}
             </div>
-
-            {/* Country */}
+            {/* ✅ Country (with CountrySelect) */}
             <div>
               <Label htmlFor="country">Country</Label>
-              <Select onValueChange={(value) => setValue("country", value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select your country" />
-                </SelectTrigger>
-                <SelectContent>
-                  {countries.map((country) => (
-                    <SelectItem key={country.value} value={country.value}>
-                      {country.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CountrySelect
+                value={watch("country")}
+                onChange={(value) => setValue("country", value)}
+              />
               <input
                 type="hidden"
                 {...register("country", {
@@ -185,7 +184,6 @@ export function Onboarding() {
                 </p>
               )}
             </div>
-
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Setting Up Profile..." : "Complete Setup"}
             </Button>
