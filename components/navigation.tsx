@@ -42,7 +42,6 @@ export function Navigation() {
               ""
             ) : (
               <>
-                {" "}
                 {user ? (
                   <Button asChild>
                     <Link href="/feed">Community</Link>
