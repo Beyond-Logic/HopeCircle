@@ -1,5 +1,6 @@
 import { Footer } from "@/components/footer";
 import { Navigation } from "@/components/navigation";
+import { AuthProvider } from "@/context/authContext";
 
 
 export default async function WebsiteSiteLayout({
@@ -9,7 +10,10 @@ export default async function WebsiteSiteLayout({
 }>) {
   return (
     <div className="min-h-screen">
-      <Navigation />
+      <AuthProvider>
+        <Navigation />
+      </AuthProvider>
+
       {children}
       <Footer />
     </div>
