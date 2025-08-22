@@ -10,7 +10,10 @@ export default async function AuthLayout({
   return (
     <AuthProvider>
       <Suspense>
-        <Navigation />
+        <AuthProvider>
+          <Navigation />
+        </AuthProvider>
+
         <div className="min-h-screen bg-gradient-to-b from-background to-muted">
           {children}
         </div>
