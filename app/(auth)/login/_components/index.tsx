@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Heart, Eye, EyeOff } from "lucide-react";
+import { authService } from "@/lib/supabase/service/auth-service";
 
 interface LoginFormData {
   email: string;
@@ -33,26 +34,23 @@ export function Login() {
     setIsLoading(true);
     setError("");
     try {
-      console.log("Login data:", data);
-
-      // Set mock authentication data in localStorage for testing
-      const mockUser = {
-        id: "test-user-123",
+      const { data: authData, error: signInError } = await authService.signIn({
         email: data.email,
-        name: data.email.split("@")[0], // Use email prefix as name
-        genotype: "SS",
-        country: "Nigeria",
-        isAuthenticated: true,
-      };
+        password: data.password,
+      });
 
-      localStorage.setItem("hopecircle_auth", "true");
-      localStorage.setItem("hopecircle_user", JSON.stringify(mockUser));
+      if (signInError) {
+        setError(signInError.message);
+        return;
+      }
 
-      // Redirect to feed after successful login
-      router.push("/feed");
+      if (authData.user) {
+        // Redirect to feed after successful login
+        router.push("/feed");
+      }
     } catch (error) {
       console.error("Login error:", error);
-      setError("Invalid email or password. Please try again.");
+      setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }

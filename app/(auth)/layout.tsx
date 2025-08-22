@@ -1,5 +1,5 @@
-import { Footer } from "@/components/footer";
 import { Navigation } from "@/components/navigation";
+import { AuthProvider } from "@/context/authContext";
 import { Suspense } from "react";
 
 export default async function AuthLayout({
@@ -8,11 +8,13 @@ export default async function AuthLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <Suspense>
-      <Navigation />
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted">
-        {children}
-      </div>
-    </Suspense>
+    <AuthProvider>
+      <Suspense>
+        <Navigation />
+        <div className="min-h-screen bg-gradient-to-b from-background to-muted">
+          {children}
+        </div>
+      </Suspense>
+    </AuthProvider>
   );
 }
