@@ -89,7 +89,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
-                  variant="ghost"
+                  variant="default"
                   className="relative h-10 w-10 rounded-full"
                 >
                   <Avatar className="h-10 w-10">
@@ -98,7 +98,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                       alt="Profile"
                     />
                     <AvatarFallback>
-                      <User className="w-5 h-5" />
+                      <User className="w-5 h-5 text-primary hover:bg-primary" />
                     </AvatarFallback>
                   </Avatar>
                 </Button>

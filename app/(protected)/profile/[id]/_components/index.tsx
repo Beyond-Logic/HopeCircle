@@ -1,45 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { format, parseISO } from "date-fns";
 import { PostCard } from "@/components/post-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MapPin, Calendar, MessageCircle, Settings, User } from "lucide-react";
-
-// Mock user data
-const mockUserData = {
-  me: {
-    id: "me",
-    name: "John Doe",
-    email: "john@example.com",
-    genotype: "SS",
-    country: "Nigeria",
-    bio: "Living with sickle cell and sharing my journey. Advocate for better healthcare access in Nigeria.",
-    avatar: null,
-    joinedAt: new Date("2023-08-15"),
-    postsCount: 24,
-    groupsCount: 5,
-    isCurrentUser: true,
-  },
-  user1: {
-    id: "user1",
-    name: "Amara Johnson",
-    email: "amara@example.com",
-    genotype: "SS",
-    country: "Nigeria",
-    bio: "Sickle cell warrior, healthcare advocate, and community builder. Passionate about supporting fellow warriors.",
-    avatar: null,
-    joinedAt: new Date("2023-06-10"),
-    postsCount: 18,
-    groupsCount: 3,
-    isCurrentUser: false,
-  },
-};
+import {
+  MapPin,
+  Calendar,
+  MessageCircle,
+  Settings,
+  User as UserIcon,
+} from "lucide-react";
+import { useAuth } from "@/context/authContext";
+import {
+  useProfileByUsername,
+  useCurrentUserProfile,
+} from "@/hooks/react-query/use-auth-service";
+import { authService } from "@/lib/supabase/service/auth-service";
 
 // Mock user posts
 const mockUserPosts = [
@@ -72,28 +55,55 @@ const mockUserGroups = [
 export function Profile() {
   const params = useParams();
   const userId = params.id as string;
+  const { user } = useAuth();
+
+  // State for posts and avatar preview
   const [posts, setPosts] = useState(mockUserPosts);
-  const [currentUserData, setCurrentUserData] = useState(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("hopecircle_user");
-      return stored ? JSON.parse(stored) : null;
+  const [profilePreview, setProfilePreview] = useState<string | null>(null);
+
+  // ---------------------------
+  // React Query hooks
+  // ---------------------------
+  const isMe = userId === "me";
+  const {
+    data: currentUserProfileData,
+    isLoading: isLoadingCurrentUser,
+    isError: isErrorCurrentUser,
+    error: errorCurrentUser,
+  } = useCurrentUserProfile();
+  const {
+    data: otherUserProfileData,
+    isLoading: isLoadingOtherUser,
+    isError: isErrorOtherUser,
+    error: errorOtherUser,
+  } = useProfileByUsername(userId);
+
+  const profileData = isMe ? currentUserProfileData : otherUserProfileData;
+  const isLoading = isMe ? isLoadingCurrentUser : isLoadingOtherUser;
+  const isError = isMe ? isErrorCurrentUser : isErrorOtherUser;
+  const error = isMe ? errorCurrentUser : errorOtherUser;
+
+  console.log("Profile data:", profileData, error);
+
+  // ---------------------------
+  // Set avatar preview when profile loads
+  // ---------------------------
+  useEffect(() => {
+    if (!profileData?.profile?.avatar_url) {
+      setProfilePreview(null);
+      return;
     }
-    return null;
-  });
 
-  const user =
-    userId === "me" && currentUserData
-      ? {
-          ...mockUserData.me,
-          name: currentUserData.name || mockUserData.me.name,
-          bio: currentUserData.bio || mockUserData.me.bio,
-          genotype: currentUserData.genotype || mockUserData.me.genotype,
-          country: currentUserData.country || mockUserData.me.country,
-          avatar: currentUserData.avatar || mockUserData.me.avatar,
-        }
-      : mockUserData[userId as keyof typeof mockUserData];
+    authService
+      .getAvatarUrl(profileData.profile.avatar_url)
+      .then(setProfilePreview);
+  }, [profileData]);
 
-  if (!user) {
+  // ---------------------------
+  // Loading & error states
+  // ---------------------------
+  if (isLoading) return null
+  if (isError || !profileData?.profile)
     return (
       <div className="text-center py-12">
         <h1 className="text-2xl font-bold mb-4">User not found</h1>
@@ -102,7 +112,6 @@ export function Profile() {
         </Link>
       </div>
     );
-  }
 
   const handleLike = (postId: string) => {
     setPosts(
@@ -126,44 +135,49 @@ export function Profile() {
           <div className="flex flex-col sm:flex-row items-start gap-6">
             <Avatar className="w-24 h-24">
               <AvatarImage
-                src={user.avatar || "/placeholder.svg?height=96&width=96"}
-                alt={user.name}
+                src={profilePreview || "/placeholder.svg?height=96&width=96"}
+                alt={profileData.profile.username}
               />
               <AvatarFallback className="text-2xl">
-                <User className="w-12 h-12" />
+                <UserIcon className="w-12 h-12" />
               </AvatarFallback>
             </Avatar>
 
             <div className="flex-1">
               <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                 <div>
-                  <h1 className="text-2xl font-bold mb-2">{user.name}</h1>
+                  <h1 className="text-2xl font-bold mb-2">
+                    {profileData.profile.first_name}{" "}
+                    {profileData.profile.last_name}
+                  </h1>
                   <div className="flex flex-wrap items-center gap-4 text-muted-foreground mb-3">
-                    <Badge variant="secondary">{user.genotype}</Badge>
+                    <Badge variant="secondary">
+                      {profileData.profile.genotype}
+                    </Badge>
                     <div className="flex items-center gap-1">
                       <MapPin className="w-4 h-4" />
-                      <span>
-                        {typeof user.country === "string" &&
-                        user.country.length <= 3
-                          ? user.country.charAt(0).toUpperCase() +
-                            user.country.slice(1)
-                          : user.country}
-                      </span>
+                      <span>{profileData.profile.country}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
-                      <span>Joined {user.joinedAt.toLocaleDateString()}</span>
+                      <span>
+                        Joined{" "}
+                        {format(
+                          parseISO(profileData.profile.created_at),
+                          "MMMM d, yyyy"
+                        )}
+                      </span>
                     </div>
                   </div>
-                  {user.bio && (
+                  {profileData.profile.bio && (
                     <p className="text-muted-foreground leading-relaxed">
-                      {user.bio}
+                      {profileData.profile.bio}
                     </p>
                   )}
                 </div>
 
                 <div className="flex gap-2">
-                  {user.isCurrentUser ? (
+                  {user ? (
                     <Button asChild>
                       <Link href="/settings">
                         <Settings className="w-4 h-4 mr-2" />
@@ -184,11 +198,11 @@ export function Profile() {
 
               <div className="flex gap-6 mt-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold">{user.postsCount}</div>
+                  <div className="text-2xl font-bold">10</div>
                   <div className="text-sm text-muted-foreground">Posts</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold">{user.groupsCount}</div>
+                  <div className="text-2xl font-bold">20</div>
                   <div className="text-sm text-muted-foreground">Groups</div>
                 </div>
               </div>
@@ -216,7 +230,7 @@ export function Profile() {
                 <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No posts yet</h3>
                 <p className="text-muted-foreground">
-                  {user.isCurrentUser
+                  {user
                     ? "Share your first post with the community!"
                     : "This user hasn't posted yet."}
                 </p>
@@ -250,33 +264,35 @@ export function Profile() {
         <TabsContent value="about" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>About {user.name}</CardTitle>
+              <CardTitle>About {profileData.profile.username}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <h4 className="font-semibold mb-2">Genotype</h4>
-                <Badge variant="secondary">{user.genotype}</Badge>
+                <Badge variant="secondary">
+                  {profileData.profile.genotype}
+                </Badge>
               </div>
               <div>
                 <h4 className="font-semibold mb-2">Location</h4>
                 <p className="text-muted-foreground">
-                  {typeof user.country === "string" && user.country.length <= 3
-                    ? user.country.charAt(0).toUpperCase() +
-                      user.country.slice(1)
-                    : user.country}
+                  {profileData.profile.country}
                 </p>
               </div>
               <div>
                 <h4 className="font-semibold mb-2">Member Since</h4>
                 <p className="text-muted-foreground">
-                  {user.joinedAt.toLocaleDateString()}
+                  {format(
+                    parseISO(profileData.profile.created_at),
+                    "MMMM d, yyyy"
+                  )}
                 </p>
               </div>
-              {user.bio && (
+              {profileData.profile.bio && (
                 <div>
                   <h4 className="font-semibold mb-2">Bio</h4>
                   <p className="text-muted-foreground leading-relaxed">
-                    {user.bio}
+                    {profileData.profile.bio}
                   </p>
                 </div>
               )}
