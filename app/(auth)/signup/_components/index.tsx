@@ -1,42 +1,36 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { Navigation } from "@/components/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Heart, Eye, EyeOff } from "lucide-react";
+import { authService } from "@/lib/supabase/service/auth-service";
 
 interface SignupFormData {
-  firstName: string;
-  lastName: string;
   email: string;
   password: string;
   confirmPassword: string;
-  genotype: string;
-  country: string;
 }
 
 export function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const router = useRouter();
 
   const {
     register,
     handleSubmit,
     watch,
-    setValue,
     formState: { errors },
   } = useForm<SignupFormData>();
 
@@ -44,34 +38,52 @@ export function Signup() {
 
   const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true);
+    setError("");
     try {
-      // TODO: Implement Supabase signup logic
-      console.log("Signup data:", data);
-      // Redirect to onboarding after successful signup
-      // router.push('/onboarding')
+      const { data: authData, error: signUpError } = await authService.signUp({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
+      }
+
+      if (authData.user) {
+        setSuccess(true);
+      }
     } catch (error) {
       console.error("Signup error:", error);
+      setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const genotypes = [
-    { value: "SS", label: "SS - Sickle Cell Anemia" },
-    { value: "SC", label: "SC - Sickle Cell Disease" },
-    { value: "AS", label: "AS - Sickle Cell Trait" },
-    { value: "AA", label: "AA - Normal" },
-    { value: "other", label: "Other" },
-  ];
-
-  const countries = [
-    { value: "nigeria", label: "Nigeria" },
-    { value: "usa", label: "United States" },
-    { value: "uk", label: "United Kingdom" },
-    { value: "ghana", label: "Ghana" },
-    { value: "kenya", label: "Kenya" },
-    { value: "other", label: "Other" },
-  ];
+  if (success) {
+    return (
+      <div className="flex items-center justify-center px-4 py-12">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+              <Heart className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <CardTitle className="text-2xl">Check Your Email</CardTitle>
+            <p className="text-muted-foreground">
+              We've sent you a verification link. Please check your email and
+              click the link to verify your account.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => router.push("/login")} className="w-full">
+              Go to Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center px-4 py-12">
@@ -87,41 +99,13 @@ export function Signup() {
         </CardHeader>
 
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Name Fields */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="firstName">First Name</Label>
-                <Input
-                  id="firstName"
-                  {...register("firstName", {
-                    required: "First name is required",
-                  })}
-                  placeholder="John"
-                />
-                {errors.firstName && (
-                  <p className="text-sm text-destructive mt-1">
-                    {errors.firstName.message}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input
-                  id="lastName"
-                  {...register("lastName", {
-                    required: "Last name is required",
-                  })}
-                  placeholder="Doe"
-                />
-                {errors.lastName && (
-                  <p className="text-sm text-destructive mt-1">
-                    {errors.lastName.message}
-                  </p>
-                )}
-              </div>
-            </div>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* Email */}
             <div>
               <Label htmlFor="email">Email</Label>
@@ -212,62 +196,6 @@ export function Signup() {
               {errors.confirmPassword && (
                 <p className="text-sm text-destructive mt-1">
                   {errors.confirmPassword.message}
-                </p>
-              )}
-            </div>
-
-            {/* Genotype */}
-            <div>
-              <Label htmlFor="genotype">Genotype</Label>
-              <Select onValueChange={(value) => setValue("genotype", value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select your genotype" />
-                </SelectTrigger>
-                <SelectContent>
-                  {genotypes.map((genotype) => (
-                    <SelectItem key={genotype.value} value={genotype.value}>
-                      {genotype.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <input
-                type="hidden"
-                {...register("genotype", {
-                  required: "Please select your genotype",
-                })}
-              />
-              {errors.genotype && (
-                <p className="text-sm text-destructive mt-1">
-                  {errors.genotype.message}
-                </p>
-              )}
-            </div>
-
-            {/* Country */}
-            <div>
-              <Label htmlFor="country">Country</Label>
-              <Select onValueChange={(value) => setValue("country", value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select your country" />
-                </SelectTrigger>
-                <SelectContent>
-                  {countries.map((country) => (
-                    <SelectItem key={country.value} value={country.value}>
-                      {country.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <input
-                type="hidden"
-                {...register("country", {
-                  required: "Please select your country",
-                })}
-              />
-              {errors.country && (
-                <p className="text-sm text-destructive mt-1">
-                  {errors.country.message}
                 </p>
               )}
             </div>
