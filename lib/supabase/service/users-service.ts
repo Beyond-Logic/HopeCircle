@@ -1,5 +1,4 @@
 import { createClient } from "../client";
-import { authService } from "./auth-service";
 
 const supabase = createClient();
 

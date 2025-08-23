@@ -47,6 +47,7 @@ const mockUserPosts = [
     likes: 24,
     comments: 8,
     isLiked: false,
+    post_likes: [], // Add this property to match the Post type
   },
 ];
 
