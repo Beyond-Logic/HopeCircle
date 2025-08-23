@@ -1,8 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import type React from "react";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +18,9 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ImageIcon, Send, User, X, Users, AtSign, Globe } from "lucide-react";
+import { postService } from "@/lib/supabase/service/post-service";
+import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
+import { useUserFollowers } from "@/hooks/react-query/use-get-user-followers";
 
 interface CreatePostFormData {
   content: string;
@@ -34,15 +38,18 @@ interface CreatePostFormProps {
 export function CreatePostForm({
   onPostCreated,
   groupId,
-  groupName,
-}: CreatePostFormProps) {
+}: // groupName,
+CreatePostFormProps) {
+  const { data: user, refetch } = useCurrentUserProfile();
   const [isLoading, setIsLoading] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
     groupId || "your-timeline"
   );
   const [taggedUsers, setTaggedUsers] = useState<
-    Array<{ id: string; name: string }>
+    Array<{ id: string; username: string }>
   >([]);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [tagQuery, setTagQuery] = useState("");
@@ -54,18 +61,9 @@ export function CreatePostForm({
     { id: "healthcare-pros", name: "Healthcare Professionals" },
   ];
 
-  const followedUsers = [
-    { id: "user1", name: "Maria Santos", genotype: "SC", country: "Brazil" },
-    { id: "user2", name: "Ahmed Hassan", genotype: "SS", country: "Egypt" },
-    {
-      id: "user3",
-      name: "Dr. Sarah Johnson",
-      genotype: "Caregiver",
-      country: "USA",
-    },
-    { id: "user4", name: "Kwame Asante", genotype: "SS", country: "Ghana" },
-    { id: "user5", name: "Fatima Al-Zahra", genotype: "SC", country: "UAE" },
-  ];
+  const { data } = useUserFollowers(user?.user.id);
+
+  const followedUsers = data || [];
 
   const {
     register,
@@ -77,6 +75,12 @@ export function CreatePostForm({
   } = useForm<CreatePostFormData>();
 
   const contentValue = watch("content", "");
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageButtonClick = () => {
+    fileInputRef.current?.click();
+  };
 
   const handleContentChange = (value: string) => {
     setValue("content", value);
@@ -95,12 +99,12 @@ export function CreatePostForm({
     }
   };
 
-  const selectUserForTag = (user: { id: string; name: string }) => {
+  const selectUserForTag = (user: { id: string; username: string }) => {
     const atIndex = contentValue.lastIndexOf("@");
     const beforeAt = contentValue.slice(0, atIndex);
     const afterQuery = contentValue.slice(atIndex + tagQuery.length + 1);
 
-    const newContent = `${beforeAt}@${user.name} ${afterQuery}`;
+    const newContent = `${beforeAt}@${user.username} ${afterQuery}`;
     setValue("content", newContent);
 
     if (!taggedUsers.find((u) => u.id === user.id)) {
@@ -117,37 +121,64 @@ export function CreatePostForm({
 
   const onSubmit = async (data: CreatePostFormData) => {
     setIsLoading(true);
+
     try {
-      const selectedGroup = userGroups.find((g) => g.id === selectedGroupId);
+      const currentUserId = user?.user.id || "";
 
-      const newPost = {
-        id: Date.now().toString(),
-        author: {
-          id: "current-user",
-          name: "John Doe",
-          genotype: "SS",
-          country: "Nigeria",
-          avatar: null,
-        },
-        content: data.content,
-        images: imagePreviews,
-        group: selectedGroup
-          ? { id: selectedGroup.id, name: selectedGroup.name }
-          : null,
-        taggedUsers: taggedUsers,
-        createdAt: new Date(),
-        likes: 0,
-        comments: 0,
-        isLiked: false,
-      };
+      // 1. First, create a post without images (to get postId)
+      const { data: createdPost, error: postError } =
+        await postService.createPost({
+          content: data.content,
+          author_id: currentUserId,
+          group_id:
+            selectedGroupId !== "your-timeline" ? selectedGroupId : undefined,
+        });
 
-      onPostCreated(newPost);
+      if (postError || !createdPost) {
+        console.error("Error creating post:", postError);
+        return;
+      }
+
+      // 2. Upload images to storage
+      const uploadedKeys: string[] = [];
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const fileKey = await postService.uploadPostImage(
+          selectedFiles[i],
+          createdPost.id,
+          i
+        );
+        uploadedKeys.push(fileKey);
+      }
+
+      // 3. Update post with uploaded image keys
+      if (uploadedKeys.length > 0) {
+        await postService.updatePost(createdPost.id, { images: uploadedKeys });
+      }
+
+      // 4. Add post tags if any
+      if (taggedUsers.length > 0) {
+        const taggedIds = taggedUsers.map((u) => u.id);
+        await postService.addPostTags(createdPost.id, taggedIds);
+      }
+
+      // 5. Refetch the full post
+      const { data: fullPost } = await postService.updatePost(
+        createdPost.id,
+        {}
+      );
+
+      // 6. Notify parent
+      onPostCreated(fullPost || createdPost);
+
+      // 7. Reset
       reset();
       setImagePreviews([]);
+      setSelectedFiles([]);
       setSelectedGroupId("");
       setTaggedUsers([]);
       setShowTagSuggestions(false);
       setTagQuery("");
+      refetch();
     } catch (error) {
       console.error("Error creating post:", error);
     } finally {
@@ -157,24 +188,44 @@ export function CreatePostForm({
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (files) {
-      const newPreviews: string[] = [];
-      Array.from(files).forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          newPreviews.push(reader.result as string);
-          if (newPreviews.length === files.length) {
-            setImagePreviews((prev) => [...prev, ...newPreviews].slice(0, 6));
-          }
-        };
-        reader.readAsDataURL(file);
-      });
-    }
+    if (!files) return;
+
+    const newFiles: File[] = [];
+    const newPreviews: string[] = [];
+
+    Array.from(files).forEach((file) => {
+      if (file.size > 1024 * 1024) {
+        alert(`${file.name} exceeds 1MB and was skipped.`);
+        return;
+      }
+      if (selectedFiles.length + newFiles.length >= 6) {
+        alert("You can only upload up to 6 images.");
+        return;
+      }
+
+      newFiles.push(file);
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        newPreviews.push(reader.result as string);
+        if (newPreviews.length === newFiles.length) {
+          setSelectedFiles((prev) => [...prev, ...newFiles].slice(0, 6));
+          setImagePreviews((prev) => [...prev, ...newPreviews].slice(0, 6));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // allow re-selecting same file
+    event.target.value = "";
   };
 
   const removeImage = (index: number) => {
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
+
+  console.log("taggedUsers:", taggedUsers);
 
   return (
     <Card>
@@ -196,7 +247,7 @@ export function CreatePostForm({
                   <SelectItem value="your-timeline">
                     <div className="flex items-center gap-2">
                       <Globe className="w-4 h-4" />
-                     Select community
+                      Select community
                     </div>
                   </SelectItem>
                   {userGroups.map((group) => (
@@ -257,7 +308,9 @@ export function CreatePostForm({
                 <div className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
                   {followedUsers
                     .filter((user) =>
-                      user.name.toLowerCase().includes(tagQuery.toLowerCase())
+                      user.username
+                        .toLowerCase()
+                        .includes(tagQuery.toLowerCase())
                     )
                     .map((user) => (
                       <button
@@ -268,7 +321,7 @@ export function CreatePostForm({
                       >
                         <AtSign className="w-4 h-4" />
                         <div>
-                          <div className="font-medium">{user.name}</div>
+                          <div className="font-medium">{user.username}</div>
                           <div className="text-xs text-muted-foreground">
                             {user.genotype} • {user.country}
                           </div>
@@ -290,7 +343,7 @@ export function CreatePostForm({
                   className="flex items-center gap-1"
                 >
                   <AtSign className="w-3 h-3" />
-                  {user.name}
+                  {user.username}
                   <button
                     title="remove tag"
                     type="button"
@@ -346,6 +399,8 @@ export function CreatePostForm({
                 {...register("images")}
                 onChange={handleImageChange}
                 disabled={imagePreviews.length >= 6}
+
+                // reset input if all images removed
               />
             </div>
 

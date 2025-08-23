@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,8 +29,23 @@ import {
   Trash2,
   Check,
   AtSign,
+  ImageIcon,
+  Globe,
+  Send,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
+import { usePostImages } from "@/hooks/react-query/use-post-images";
+import { postService } from "@/lib/supabase/service/post-service";
+import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { useUserFollowers } from "@/hooks/react-query/use-get-user-followers";
 
 interface Post {
   id: string;
@@ -40,6 +55,7 @@ interface Post {
     genotype: string;
     country: string;
     avatar: string | null;
+    username: string;
   };
   content: string;
   images?: string[];
@@ -49,9 +65,11 @@ interface Post {
   } | null;
   taggedUsers?: Array<{ id: string; name: string }>;
   createdAt: Date;
+  updatedAt: Date;
   likes: number;
   comments: number;
   isLiked: boolean;
+  postTags?: Array<{ tagged_user: { id: string; username: string } }>;
 }
 
 interface PostCardProps {
@@ -62,17 +80,40 @@ interface PostCardProps {
 }
 
 export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
+  const { data: user } = useCurrentUserProfile();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [showAllImages, setShowAllImages] = useState(false);
+  const [newImages, setNewImages] = useState<File[]>([]);
+  const [removedImages, setRemovedImages] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState(post.content);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState("");
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(
+    post.group?.id || "your-timeline"
+  );
+  const [taggedUsers, setTaggedUsers] = useState<
+    Array<{ id: string; username: string }>
+  >([]);
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [tagQuery, setTagQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const currentUserId = "current-user";
+  const currentUserId = user?.user.id || "";
   const canEdit = post.author.id === currentUserId;
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // 🔑 Convert storage keys → signed URLs
+  const { data, refetch } = usePostImages(post.images);
+  const imageUrls = data;
+
+  console.log("posts.post_tags:", post.postTags, taggedUsers);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -112,26 +153,34 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
 
   const goToPrevious = () => {
     setCurrentImageIndex((prev) =>
-      prev > 0 ? prev - 1 : post.images!.length - 1
+      prev > 0 ? prev - 1 : (imageUrls?.length ?? 0) - 1
     );
   };
 
   const goToNext = () => {
     setCurrentImageIndex((prev) =>
-      prev < post.images!.length - 1 ? prev + 1 : 0
+      prev < (imageUrls?.length ?? 0) - 1 ? prev + 1 : 0
     );
+  };
+
+  const removeExistingImage = (key: string) => {
+    setRemovedImages((prev) => (prev.includes(key) ? prev : [...prev, key]));
+  };
+
+  const removeNewImage = (index: number) => {
+    setNewImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const renderImageGrid = () => {
     if (!post.images || post.images.length === 0) return null;
 
-    const images = post.images;
-    const imageCount = images.length;
+    const images = imageUrls;
+    const imageCount = images?.length;
 
     if (imageCount === 1) {
       return (
         <img
-          src={images[0] || "/placeholder.svg"}
+          src={(images && images[0]) || "/placeholder.svg"}
           alt="Post image"
           className="mt-3 max-w-full h-auto rounded-lg border cursor-pointer"
           onClick={() => openImageCarousel(0)}
@@ -142,7 +191,7 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
     if (imageCount === 2) {
       return (
         <div className="mt-3 grid grid-cols-2 gap-2">
-          {images.map((image, index) => (
+          {images?.map((image, index) => (
             <img
               key={index}
               src={image || "/placeholder.svg"}
@@ -159,13 +208,13 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
       return (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <img
-            src={images[0] || "/placeholder.svg"}
+            src={(images && images[0]) || "/placeholder.svg"}
             alt="Post image 1"
             className="w-full h-48 object-cover rounded-lg border cursor-pointer"
             onClick={() => openImageCarousel(0)}
           />
           <div className="grid grid-rows-2 gap-2">
-            {images.slice(1, 3).map((image, index) => (
+            {images?.slice(1, 3).map((image, index) => (
               <img
                 key={index + 1}
                 src={image || "/placeholder.svg"}
@@ -181,7 +230,7 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
 
     return (
       <div className="mt-3 grid grid-cols-2 gap-2">
-        {images.slice(0, 4).map((image, index) => (
+        {images?.slice(0, 4).map((image, index) => (
           <div key={index} className="relative">
             <img
               src={image || "/placeholder.svg"}
@@ -189,7 +238,7 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
               className="w-full h-32 object-cover rounded-lg border cursor-pointer"
               onClick={() => openImageCarousel(index)}
             />
-            {index === 3 && imageCount > 4 && (
+            {index === 3 && imageCount && imageCount > 4 && (
               <div
                 className="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center cursor-pointer"
                 onClick={() => openImageCarousel(3)}
@@ -205,15 +254,57 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
     );
   };
 
-  const handleEditPost = () => {
-    if (onEdit && editContent.trim() !== post.content) {
-      onEdit(post.id, editContent.trim());
+  // Keys that remain after "remove" clicks (preserve original order)
+  const existingKeys = useMemo(
+    () => (post.images || []).filter((k) => !removedImages.includes(k)),
+    [post.images, removedImages]
+  );
+
+  // Map each storage key to its signed URL (built from original order)
+  const urlByKey = useMemo(() => {
+    const m = new Map<string, string | null>();
+    (post.images || []).forEach((k, idx) => {
+      m.set(k, imageUrls?.[idx] ?? null);
+    });
+    return m;
+  }, [post.images, imageUrls]);
+
+  const handleEditPost = async () => {
+    setIsLoading(true);
+    try {
+      // keep remaining existing images in original order
+      const updatedImages = [...existingKeys];
+
+      // upload new images (max 1MB already enforced)
+      for (let i = 0; i < newImages.length; i++) {
+        const key = await postService.uploadPostImage(newImages[i], post.id, i);
+        updatedImages.push(key);
+      }
+
+      const updates = {
+        content: contentValue.trim(),
+        images: updatedImages,
+        group_id: selectedGroupId !== "your-timeline" ? selectedGroupId : null,
+        // tags later
+      };
+
+      const { data, error } = await postService.updatePost(post.id, updates);
+      if (error) throw error;
+
+      onEdit?.(post.id, data); // ensure parent updates `post.images`
+      setIsEditing(false);
+      setNewImages([]);
+      setRemovedImages([]);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update post. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-    setIsEditing(false);
   };
 
   const cancelEdit = () => {
-    setEditContent(post.content);
+    setContent(post.content);
     setIsEditing(false);
   };
 
@@ -243,6 +334,76 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
     setEditCommentText("");
   };
 
+  const userGroups = [
+    { id: "nigeria-warriors", name: "Nigeria Warriors" },
+    { id: "caregivers-support", name: "Caregivers Support" },
+    { id: "young-adults", name: "Young Adults with SCD" },
+    { id: "healthcare-pros", name: "Healthcare Professionals" },
+  ];
+
+  const { data: followed } = useUserFollowers(user?.user.id);
+
+  const followedUsers = followed || [];
+
+  const [content, setContent] = useState(post.content || "");
+  const contentValue = content;
+
+  useEffect(() => {
+    setTaggedUsers(
+      post.postTags
+        ? post.postTags
+            .map((item) => {
+              if (!item.tagged_user?.id || !item.tagged_user?.username)
+                return null;
+              return {
+                id: item.tagged_user.id,
+                username: item.tagged_user.username,
+              };
+            })
+            .filter(
+              (user): user is { id: string; username: string } => user !== null
+            )
+        : []
+    );
+  }, [post.postTags]);
+
+  const handleContentChange = (value: string) => {
+    setContent(value);
+
+    const atIndex = value.lastIndexOf("@");
+    if (atIndex !== -1) {
+      const query = value.slice(atIndex + 1);
+      if (query.length > 0 && !query.includes(" ")) {
+        setTagQuery(query);
+        setShowTagSuggestions(true);
+      } else {
+        setShowTagSuggestions(false);
+      }
+    } else {
+      setShowTagSuggestions(false);
+    }
+  };
+
+  const selectUserForTag = (user: { id: string; username: string }) => {
+    const atIndex = contentValue.lastIndexOf("@");
+    const beforeAt = contentValue.slice(0, atIndex);
+    const afterQuery = contentValue.slice(atIndex + tagQuery.length + 1);
+
+    const newContent = `${beforeAt}@${user.username} ${afterQuery}`;
+    setContent(newContent);
+
+    if (!taggedUsers.find((u) => u.id === user.id)) {
+      setTaggedUsers((prev) => [...prev, user]);
+    }
+
+    setShowTagSuggestions(false);
+    setTagQuery("");
+  };
+
+  const removeTaggedUser = (userId: string) => {
+    setTaggedUsers((prev) => prev.filter((u) => u.id !== userId));
+  };
+
   return (
     <>
       <Card>
@@ -263,7 +424,7 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
               </Avatar>
               <div>
                 <Link
-                  href={`/profile/${post.author.id}`}
+                  href={`/profile/${post.author.username}`}
                   className="font-semibold hover:underline"
                 >
                   {post.author.name}
@@ -274,7 +435,8 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
                   <span>{post.author.country}</span>
                   <span>•</span>
                   <span>
-                    {formatDistanceToNow(post.createdAt, { addSuffix: true })}
+                    {post.updatedAt &&
+                      formatDistanceToNow(post.updatedAt, { addSuffix: true })}
                   </span>
                 </div>
                 {post.group && (
@@ -326,15 +488,183 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
           <div className="mb-4">
             {isEditing ? (
               <div className="space-y-3">
-                <Textarea
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  className="min-h-[100px] resize-none"
-                />
+                {!post.group?.id && userGroups.length > 1 && (
+                  <div className="space-y-2">
+                    {/* <label className="text-sm font-medium text-muted-foreground">
+                                Post to:
+                              </label> */}
+                    <Select
+                      value={selectedGroupId}
+                      onValueChange={setSelectedGroupId}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select where to post (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="your-timeline">
+                          <div className="flex items-center gap-2">
+                            <Globe className="w-4 h-4" />
+                            Select community
+                          </div>
+                        </SelectItem>
+                        {userGroups.map((group) => (
+                          <SelectItem key={group.id} value={group.id}>
+                            <div className="flex items-center gap-2">
+                              <Users className="w-4 h-4" />
+                              {group.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="flex-1 relative flex flex-col gap-4">
+                  <Textarea
+                    value={contentValue}
+                    onChange={(e) => handleContentChange(e.target.value)}
+                    className="min-h-[100px] resize-none"
+                  />
+                  {showTagSuggestions && (
+                    <div className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
+                      {followedUsers
+                        .filter((user) =>
+                          user.username
+                            .toLowerCase()
+                            .includes(tagQuery.toLowerCase())
+                        )
+                        .map((user) => (
+                          <button
+                            key={user.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 hover:bg-muted flex items-center gap-2"
+                            onClick={() => selectUserForTag(user)}
+                          >
+                            <AtSign className="w-4 h-4" />
+                            <div>
+                              <div className="font-medium">{user.username}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {user.genotype} • {user.country}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                  {taggedUsers.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        Tagged:
+                      </span>
+                      {taggedUsers.map((user) => (
+                        <Badge
+                          key={user.id}
+                          variant="secondary"
+                          className="flex items-center gap-1"
+                        >
+                          <AtSign className="w-3 h-3" />
+                          {user.username}
+                          <button
+                            title="remove tag"
+                            type="button"
+                            onClick={() => removeTaggedUser(user.id)}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  {/* Image Upload + Preview */}
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="image-upload" className="cursor-pointer">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleImageButtonClick}
+                      >
+                        <ImageIcon className="w-4 h-4 mr-2" />
+                        Photos ({existingKeys.length + newImages.length}/6)
+                      </Button>
+                    </label>
+                    <input
+                      ref={fileInputRef}
+                      title="Upload Images (max 1MB each)"
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        const valid = files.filter(
+                          (f) => f.size <= 1024 * 1024
+                        );
+                        if (valid.length !== files.length) {
+                          toast.error(
+                            "Some images were larger than 1MB and skipped."
+                          );
+                        }
+                        setNewImages((prev) => [...prev, ...valid]);
+                      }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Existing images */}
+                    {existingKeys.map((key) => (
+                      <div key={key} className="relative">
+                        <img
+                          src={urlByKey.get(key) || "/placeholder.svg"}
+                          alt="Existing"
+                          className="w-full h-32 object-cover rounded-lg border"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-1 right-1 h-6 w-6 p-0"
+                          onClick={() => removeExistingImage(key)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+
+                    {/* New images */}
+                    {newImages.map((file, i) => (
+                      <div key={i} className="relative">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt="Preview"
+                          className="w-full h-32 object-cover rounded-lg border"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-1 right-1 h-6 w-6 p-0"
+                          onClick={() => removeNewImage(i)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={handleEditPost}>
+                  <Button
+                    size="sm"
+                    onClick={handleEditPost}
+                    disabled={isLoading}
+                  >
                     <Check className="w-4 h-4 mr-2" />
-                    Save
+                    {isLoading ? "Saving..." : <>Save</>}
                   </Button>
                   <Button size="sm" variant="outline" onClick={cancelEdit}>
                     Cancel
@@ -342,7 +672,7 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
                 </div>
               </div>
             ) : (
-              <p className="text-foreground leading-relaxed whitespace-pre-wrap">
+              <p className="text-foreground leading-relaxed whitespace-pre-wrap line-clamp-5">
                 {post.content}
               </p>
             )}
@@ -360,7 +690,7 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
               </div>
             )}
 
-            {renderImageGrid()}
+            {!isEditing && renderImageGrid()}
           </div>
 
           {/* Post Actions */}
@@ -513,7 +843,7 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
       </Card>
 
       {/* Image Gallery Modal */}
-      {showAllImages && post.images && (
+      {showAllImages && imageUrls && imageUrls.length > 0 && (
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
           <div className="relative w-full h-full flex items-center justify-center p-4">
             {/* Close Button */}
@@ -528,11 +858,11 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
 
             {/* Image Counter */}
             <div className="absolute top-4 left-4 z-10 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
-              {currentImageIndex + 1} of {post.images.length}
+              {currentImageIndex + 1} of {imageUrls.length}
             </div>
 
             {/* Previous Button */}
-            {post.images.length > 1 && (
+            {imageUrls.length > 1 && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -546,14 +876,14 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
             {/* Current Image */}
             <div className="max-w-[90vw] max-h-[90vh] flex items-center justify-center">
               <img
-                src={post.images[currentImageIndex] || "/placeholder.svg"}
+                src={imageUrls[currentImageIndex] || "/placeholder.svg"}
                 alt={`Post image ${currentImageIndex + 1}`}
                 className="max-w-full max-h-full object-contain rounded-lg"
               />
             </div>
 
             {/* Next Button */}
-            {post.images.length > 1 && (
+            {imageUrls.length > 1 && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -565,9 +895,9 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
             )}
 
             {/* Image Dots Indicator */}
-            {post.images.length > 1 && (
+            {imageUrls.length > 1 && (
               <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
-                {post.images.map((_, index) => (
+                {imageUrls.map((_, index) => (
                   <button
                     title="Select image"
                     type="button"
