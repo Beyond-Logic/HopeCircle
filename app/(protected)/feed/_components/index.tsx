@@ -9,11 +9,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Heart, TrendingUp, Clock, Users, UserPlus } from "lucide-react";
 import { useGetPosts } from "@/hooks/react-query/use-posts-service";
 import { PostCard } from "@/components/post-card";
+import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
 
 export function Feed() {
-  const { data: postsData, refetch } = useGetPosts({ page: 0, limit: 10 });
+  const {
+    data: postsData,
+    refetch,
+    isLoading,
+  } = useGetPosts({ page: 0, limit: 10 });
   const [posts, setPosts] = useState<typeof postsData>([]);
   const [activeTab, setActiveTab] = useState("recent");
+  const { data: user } = useCurrentUserProfile();
+
+  const currentUserId = user?.user.id as string;
+  console.log("Current User ID in feed:", currentUserId, postsData);
 
   // console.log("Fetched posts:", postsData);
 
@@ -38,35 +47,18 @@ export function Feed() {
         group: post.group ? { id: post.group.id, name: post.group.name } : null,
         createdAt: post.created_at,
         updatedAt: post.updated_at,
-        likes: post.likes_count || 0,
-        isLiked:
-          post.post_likes?.some(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (like: any) => like.user_id === "current-user"
-          ) || false,
-        comments: post.comments_count || post.comments?.[0]?.count || 0,
+        likes: post.post_likes.length || 0,
+        post_likes: post.post_likes || [],
+        comments: post.comments?.[0]?.count || 0,
         postTags: post.post_tags || [],
       }));
       setPosts(formattedPosts);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postsData]);
 
   const handlePost = () => {
-    refetch()
-  };
-
-  const handleLike = (postId: string) => {
-    setPosts(
-      posts?.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              isLiked: !post.isLiked,
-              likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-            }
-          : post
-      )
-    );
+    refetch();
   };
 
   const getFilteredPosts = () => {
@@ -158,13 +150,10 @@ export function Feed() {
           <TabsContent key={tab} value={tab} className="space-y-4 mt-6">
             {filteredPosts && filteredPosts.length > 0 ? (
               filteredPosts.map((post) => (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                  onLike={handleLike}
-                  onEdit={handlePost}
-                />
+                <PostCard key={post.id} post={post} onEdit={handlePost} />
               ))
+            ) : isLoading ? (
+              ""
             ) : (
               <Card className="p-8 text-center">
                 <p className="text-muted-foreground">No posts to show yet.</p>

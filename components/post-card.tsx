@@ -46,6 +46,14 @@ import {
   SelectValue,
 } from "./ui/select";
 import { useUserFollowers } from "@/hooks/react-query/use-get-user-followers";
+import { useAddComment } from "@/hooks/react-query/use-add-comment";
+import { useComments } from "@/hooks/react-query/use-comments";
+import {
+  useLikeComment,
+  useUnlikeComment,
+} from "@/hooks/react-query/use-like-comment";
+import { useUpdateComment } from "@/hooks/react-query/use-update-comment";
+import { useLikePost, useUnlikePost } from "@/hooks/react-query/use-like-post";
 
 interface Post {
   id: string;
@@ -69,12 +77,13 @@ interface Post {
   likes: number;
   comments: number;
   isLiked: boolean;
+  post_likes: Array<{ user_id: string }>;
   postTags?: Array<{ tagged_user: { id: string; username: string } }>;
 }
 
 interface PostCardProps {
   post: Post;
-  onLike: (postId: string) => void;
+  onLike?: (postId: string) => void;
   onEdit?: (postId: string, newContent: string) => void;
   onDelete?: (postId: string) => void;
 }
@@ -93,14 +102,35 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
     post.group?.id || "your-timeline"
   );
+
+  // Add these with your other state
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+
   const [taggedUsers, setTaggedUsers] = useState<
     Array<{ id: string; username: string }>
   >([]);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [tagQuery, setTagQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { mutate: addComment, isPending } = useAddComment();
+
+  const {
+    data: commentsData,
+    error,
+    isLoading: isCommentLoading,
+  } = useComments(post.id);
+
+  const comments = commentsData?.data || [];
 
   const currentUserId = user?.user.id || "";
+
+  const isPostLiked = !!post.post_likes?.find(
+    (like) => like.user_id === currentUserId
+  );
+
+  console.log("currentUserId", currentUserId, post);
+
   const canEdit = post.author.id === currentUserId;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,7 +143,7 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
   const { data, refetch } = usePostImages(post.images);
   const imageUrls = data;
 
-  console.log("posts.post_tags:", post.postTags, taggedUsers);
+  // console.log("post", post);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -140,9 +170,21 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
 
   const handleComment = () => {
     if (commentText.trim()) {
-      // TODO: Implement comment submission
-      console.log("Comment:", commentText);
-      setCommentText("");
+      addComment(
+        {
+          postId: post.id,
+          authorId: user?.user.id as string,
+          content: commentText,
+        },
+        {
+          onSuccess: () => {
+            setCommentText(""); // reset input after success
+          },
+          onError: (err) => {
+            toast.error(`Failed to add comment: ${err.message}`);
+          },
+        }
+      );
     }
   };
 
@@ -254,6 +296,9 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
     );
   };
 
+  const { mutate: likeMutate } = useLikeComment();
+  const { mutate: unlikeMutate } = useUnlikeComment();
+
   // Keys that remain after "remove" clicks (preserve original order)
   const existingKeys = useMemo(
     () => (post.images || []).filter((k) => !removedImages.includes(k)),
@@ -268,6 +313,25 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
     });
     return m;
   }, [post.images, imageUrls]);
+
+  const handleCommentLike = (commentId: string, isLiked: boolean) => {
+    if (isLiked) {
+      unlikeMutate({ commentId, userId: currentUserId });
+    } else {
+      likeMutate({ commentId, userId: currentUserId });
+    }
+  };
+
+  const { mutate: postLikeMutate } = useLikePost();
+  const { mutate: postUnlikeMutate } = useUnlikePost();
+
+  const handleLike = () => {
+    if (isPostLiked) {
+      postUnlikeMutate({ postId: post.id, userId: currentUserId });
+    } else {
+      postLikeMutate({ postId: post.id, userId: currentUserId });
+    }
+  };
 
   const handleEditPost = async () => {
     setIsLoading(true);
@@ -322,11 +386,42 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
     setEditCommentText(currentText);
   };
 
-  const saveCommentEdit = () => {
-    // TODO: Implement comment edit logic
-    console.log("Editing comment:", editingCommentId, editCommentText);
-    setEditingCommentId(null);
-    setEditCommentText("");
+  const { mutate: updateCommentMut, isPending: isCommentUpdatePending } =
+    useUpdateComment();
+
+  const saveCommentEdit = (id: string) => {
+    if (!editCommentText.trim()) return;
+
+    updateCommentMut(
+      { id, content: editCommentText },
+      {
+        onSuccess: () => {
+          setEditingCommentId(null);
+          setEditCommentText("");
+        },
+      }
+    );
+  };
+
+  const { mutate: createCommentMut, isPending: isReplying } = useAddComment();
+
+  const handleReplySubmit = (commentId: string) => {
+    if (!replyText.trim()) return;
+
+    createCommentMut(
+      {
+        postId: post.id,
+        authorId: currentUserId, // make sure you pass the logged-in user id
+        content: replyText,
+        parentCommentId: commentId,
+      },
+      {
+        onSuccess: () => {
+          setReplyingToId(null);
+          setReplyText("");
+        },
+      }
+    );
   };
 
   const cancelCommentEdit = () => {
@@ -699,12 +794,12 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onLike(post.id)}
-                className={post.isLiked ? "text-accent hover:text-accent" : ""}
+                onClick={() => handleLike()}
+                className={isPostLiked ? "text-accent hover:text-white" : "hover:text-white"}
               >
                 <Heart
                   className={`w-4 h-4 mr-2 ${
-                    post.isLiked ? "fill-current" : ""
+                    isPostLiked ? "fill-current" : ""
                   }`}
                 />
                 {post.likes}
@@ -749,93 +844,301 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
                     <Button
                       size="sm"
                       onClick={handleComment}
-                      disabled={!commentText.trim()}
+                      disabled={isPending || !commentText.trim()}
                     >
-                      Comment
+                      {isPending ? "Commenting..." : "Comment"}
                     </Button>
                   </div>
                 </div>
               </div>
 
-              {/* Mock Comments */}
+              {/* Comments List */}
+
+              {/* Comments List */}
               <div className="space-y-3">
-                <div className="flex gap-3">
-                  <Avatar className="w-8 h-8 flex-shrink-0">
-                    <AvatarFallback>
-                      <User className="w-4 h-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    {editingCommentId === "comment-1" ? (
-                      <div className="space-y-2">
-                        <Textarea
-                          value={editCommentText}
-                          onChange={(e) => setEditCommentText(e.target.value)}
-                          className="min-h-[60px] resize-none"
-                        />
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={saveCommentEdit}>
-                            <Check className="w-3 h-3 mr-1" />
-                            Save
-                          </Button>
+                {comments.map((comment) => {
+                  const isLiked =
+                    comment.likes?.some(
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      (like: any) => like.user.id === currentUserId
+                    ) || false;
+
+                  const likes_count = comment.likes?.length || 0;
+                  const canEditComment = comment.author.id === currentUserId;
+
+                  return (
+                    <div key={comment.id} className="flex gap-3">
+                      <Avatar className="w-8 h-8 flex-shrink-0">
+                        <AvatarFallback>
+                          <User className="w-4 h-4" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        {/* Edit mode */}
+                        {editingCommentId === comment.id ? (
+                          <div className="space-y-2">
+                            <Textarea
+                              value={editCommentText}
+                              onChange={(e) =>
+                                setEditCommentText(e.target.value)
+                              }
+                              className="min-h-[60px] resize-none"
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                disabled={
+                                  isCommentUpdatePending ||
+                                  !editCommentText.trim()
+                                }
+                                onClick={() => saveCommentEdit(comment?.id)}
+                              >
+                                <Check className="w-3 h-3 mr-1" />
+                                {isCommentUpdatePending ? "Saving..." : "Save"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={cancelCommentEdit}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-muted rounded-lg p-3 pt-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-semibold text-sm">
+                                {comment.author.first_name}{" "}
+                                {comment.author.last_name}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(
+                                  comment.updated_at
+                                ).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            <p className="text-sm">{comment.content}</p>
+                          </div>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-4 mt-2">
                           <Button
+                            variant="ghost"
                             size="sm"
-                            variant="outline"
-                            onClick={cancelCommentEdit}
+                            onClick={() =>
+                              handleCommentLike(comment.id, isLiked)
+                            }
+                            className={`text-xs h-auto !p-1 ${
+                              isLiked
+                                ? "text-accent hover:text-white"
+                                : "hover:text-white"
+                            }`}
                           >
-                            Cancel
+                            <Heart
+                              className={`w-3 h-3 mr-1 ${
+                                isLiked ? "fill-current" : ""
+                              }`}
+                            />
+                            Like <span className="ml-1">{likes_count}</span>
                           </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs h-auto !p-1"
+                            onClick={() =>
+                              setReplyingToId(
+                                replyingToId === comment.id ? null : comment.id
+                              )
+                            }
+                          >
+                            Reply
+                          </Button>
+
+                          {canEditComment && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs h-auto !p-1"
+                              onClick={() =>
+                                startEditingComment(comment.id, comment.content)
+                              }
+                            >
+                              <Edit className="w-3 h-3 mr-1" />
+                              Edit
+                            </Button>
+                          )}
                         </div>
+
+                        {/* Reply box */}
+                        {replyingToId === comment.id && (
+                          <div className="mt-2 ml-8">
+                            <Textarea
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              placeholder="Write a reply..."
+                              className="min-h-[50px] resize-none"
+                            />
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                disabled={isReplying || !replyText.trim()}
+                                onClick={() => handleReplySubmit(comment.id)}
+                              >
+                                {isReplying ? "Replying..." : "Reply"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setReplyingToId(null);
+                                  setReplyText("");
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Replies */}
+                        {comment.replies?.length > 0 && (
+                          <div className="mt-3 ml-8 space-y-3">
+                            {
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                              comment.replies.map((reply: any) => {
+                                const isReplyLiked =
+                                  reply.likes?.some(
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                    (like: any) =>
+                                      like.user.id === currentUserId
+                                  ) || false;
+
+                                const replyLikesCount =
+                                  reply.likes?.length || 0;
+                                const canEditReply =
+                                  reply.author.id === currentUserId;
+
+                                return (
+                                  <div key={reply.id} className="flex gap-3">
+                                    <Avatar className="w-6 h-6 flex-shrink-0">
+                                      <AvatarFallback>
+                                        <User className="w-3 h-3" />
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1">
+                                      {/* Edit mode for reply */}
+                                      {editingCommentId === reply.id ? (
+                                        <div className="space-y-2">
+                                          <Textarea
+                                            value={editCommentText}
+                                            onChange={(e) =>
+                                              setEditCommentText(e.target.value)
+                                            }
+                                            className="min-h-[50px] resize-none"
+                                          />
+                                          <div className="flex gap-2">
+                                            <Button
+                                              size="sm"
+                                              disabled={
+                                                isCommentUpdatePending ||
+                                                !editCommentText.trim()
+                                              }
+                                              onClick={() =>
+                                                saveCommentEdit(reply.id)
+                                              }
+                                            >
+                                              <Check className="w-3 h-3 mr-1" />
+                                              {isCommentUpdatePending
+                                                ? "Saving..."
+                                                : "Save"}
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={cancelCommentEdit}
+                                            >
+                                              Cancel
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="bg-muted rounded-lg p-2">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-semibold text-xs">
+                                              {reply.author.first_name}{" "}
+                                              {reply.author.last_name}
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground">
+                                              {new Date(
+                                                reply.updated_at
+                                              ).toLocaleTimeString()}
+                                            </span>
+                                          </div>
+                                          <p className="text-xs">
+                                            {reply.content}
+                                          </p>
+                                        </div>
+                                      )}
+
+                                      {/* Reply actions */}
+                                      <div className="flex items-center gap-3 mt-1">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() =>
+                                            handleCommentLike(
+                                              reply.id,
+                                              isReplyLiked
+                                            )
+                                          }
+                                          className={`text-[10px] h-auto !p-1 ${
+                                            isReplyLiked
+                                              ? "text-accent hover:text-white"
+                                              : "hover:text-white"
+                                          }`}
+                                        >
+                                          <Heart
+                                            className={`w-3 h-3 mr-1 ${
+                                              isReplyLiked ? "fill-current" : ""
+                                            }`}
+                                          />
+                                          Like{" "}
+                                          <span className="ml-1">
+                                            {replyLikesCount}
+                                          </span>
+                                        </Button>
+
+                                        {canEditReply && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-[10px] h-auto !p-1"
+                                            onClick={() =>
+                                              startEditingComment(
+                                                reply.id,
+                                                reply.content
+                                              )
+                                            }
+                                          >
+                                            <Edit className="w-3 h-3 mr-1" />
+                                            Edit
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            }
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <div className="bg-muted rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-sm">
-                            Maria Santos
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            2h ago
-                          </span>
-                        </div>
-                        <p className="text-sm">
-                          Thank you for sharing this! It's so encouraging to
-                          hear positive updates.
-                        </p>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-4 mt-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs h-auto p-0"
-                      >
-                        <Heart className="w-3 h-3 mr-1" />
-                        Like
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs h-auto p-0"
-                      >
-                        Reply
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs h-auto p-0"
-                        onClick={() =>
-                          startEditingComment(
-                            "comment-1",
-                            "Thank you for sharing this! It's so encouraging to hear positive updates."
-                          )
-                        }
-                      >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
                     </div>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
             </div>
           )}
