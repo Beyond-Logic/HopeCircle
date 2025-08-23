@@ -55,6 +55,7 @@ const mockGroupPosts = [
     comments: 7,
     isLiked: false,
     groupId: "nigeria-warriors",
+    post_likes: [], // Add this property as required by Post type
   },
   {
     id: "group-post-2",
@@ -75,6 +76,7 @@ const mockGroupPosts = [
     comments: 12,
     isLiked: true,
     groupId: "nigeria-warriors",
+    post_likes: [], // Add this property as required by Post type
   },
 ];
 
