@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
@@ -23,6 +23,9 @@ import {
   useCurrentUserProfile,
 } from "@/hooks/react-query/use-auth-service";
 import { authService } from "@/lib/supabase/service/auth-service";
+import { userService } from "@/lib/supabase/service/users-service";
+import { toast } from "sonner";
+import { useUserFollowing } from "@/hooks/react-query/use-get-user-following";
 
 // Mock user posts
 const mockUserPosts = [
@@ -34,11 +37,13 @@ const mockUserPosts = [
       genotype: "SS",
       country: "Nigeria",
       avatar: null,
+      username: "amara_j",
     },
     content:
       "Just had my monthly check-up and my hemoglobin levels are stable! Feeling grateful for this community's support during my tough days.",
     image: null,
-    createdAt: new Date("2024-01-15T10:30:00Z"),
+    updatedAt: new Date("2024-01-15T10:30:00Z"),
+    createdAt: new Date("2024-01-15T09:00:00Z"),
     likes: 24,
     comments: 8,
     isLiked: false,
@@ -56,6 +61,10 @@ export function Profile() {
   const params = useParams();
   const userId = params.id as string;
   const { user } = useAuth();
+
+  console.log("params id:", userId);
+
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
 
   // State for posts and avatar preview
   const [posts, setPosts] = useState(mockUserPosts);
@@ -83,7 +92,17 @@ export function Profile() {
   const isError = isMe ? isErrorCurrentUser : isErrorOtherUser;
   const error = isMe ? errorCurrentUser : errorOtherUser;
 
+  const { data: following, refetch } = useUserFollowing(user?.id);
+
+  // const { data: followers } = useUserFollowers(user?.id);
+
   console.log("Profile data:", profileData, error);
+
+  const isFollowing = following?.some((f) => f.id === profileData?.profile.id);
+
+  console.log("Is following:", isFollowing, following);
+
+  // console.log("Followers data:", followers);
 
   // ---------------------------
   // Set avatar preview when profile loads
@@ -102,7 +121,7 @@ export function Profile() {
   // ---------------------------
   // Loading & error states
   // ---------------------------
-  if (isLoading) return null
+  if (isLoading) return null;
   if (isError || !profileData?.profile)
     return (
       <div className="text-center py-12">
@@ -125,6 +144,34 @@ export function Profile() {
           : post
       )
     );
+  };
+
+  const handleFollowUser = async () => {
+    if (!user) return;
+    setIsFollowLoading(true);
+    try {
+      await userService.followUser(user.id, profileData.profile.id);
+      refetch();
+    } catch (error) {
+      console.error("Error following user:", error);
+      toast.error("Failed to follow user. Please try again.");
+    } finally {
+      setIsFollowLoading(false);
+    }
+  };
+
+  const handleUnFollowUser = async () => {
+    if (!user) return;
+    setIsFollowLoading(true);
+    try {
+      await userService.unfollowUser(user.id, profileData.profile.id);
+      refetch();
+    } catch (error) {
+      console.error("Error un following user:", error);
+      toast.error("Failed to unfollow user. Please try again.");
+    } finally {
+      setIsFollowLoading(false);
+    }
   };
 
   return (
@@ -150,7 +197,7 @@ export function Profile() {
                     {profileData.profile.first_name}{" "}
                     {profileData.profile.last_name}
                   </h1>
-                  <div className="flex flex-wrap items-center gap-4 text-muted-foreground mb-3">
+                  <div className="flex flex-wrap items-center gap-4 text-muted-foreground mb-3 text-sm">
                     <Badge variant="secondary">
                       {profileData.profile.genotype}
                     </Badge>
@@ -177,7 +224,7 @@ export function Profile() {
                 </div>
 
                 <div className="flex gap-2">
-                  {user ? (
+                  {user?.id === profileData.profile.id ? (
                     <Button asChild>
                       <Link href="/settings">
                         <Settings className="w-4 h-4 mr-2" />
@@ -190,7 +237,23 @@ export function Profile() {
                         <MessageCircle className="w-4 h-4 mr-2" />
                         Message
                       </Button>
-                      <Button variant="outline">Follow</Button>
+                      {isFollowing ? (
+                        <Button
+                          variant="outline"
+                          onClick={handleUnFollowUser}
+                          disabled={isFollowLoading}
+                        >
+                          {isFollowLoading ? "Unfollow..." : "Unfollow"}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          onClick={handleFollowUser}
+                          disabled={isFollowLoading}
+                        >
+                          {isFollowLoading ? "Following..." : "Follow"}
+                        </Button>
+                      )}
                     </>
                   )}
                 </div>

@@ -22,7 +22,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, User, Eye, EyeOff, Trash2Icon } from "lucide-react";
 import { genotypes } from "@/lib/constants/genotypes";
 import { CountrySelect } from "@/components/ui/country-select";
-import { useAuth } from "@/context/authContext";
 import { authService } from "@/lib/supabase/service/auth-service";
 import { toast } from "sonner";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
@@ -51,12 +50,14 @@ export function Settings() {
   const [avatarChanged, setAvatarChanged] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const { data: currentUserProfileData, isLoading: isLoadingCurrentUser } =
-    useCurrentUserProfile();
+  const {
+    data: currentUserProfileData,
+    isLoading: isLoadingCurrentUser,
+    refetch,
+  } = useCurrentUserProfile();
 
   const profile = currentUserProfileData?.profile;
 
-  console.log("Current user profile data:", currentUserProfileData);
   const user = currentUserProfileData?.user;
   const loading = isLoadingCurrentUser || !profile;
 
@@ -124,7 +125,7 @@ export function Settings() {
 
       console.log("Profile update:", { ...data, avatar_url: avatarUrl });
       toast.success("Profile updated successfully!");
-
+      refetch();
       // Reset form dirty state and avatar changed flag
       profileForm.reset({ ...data, avatar_url: avatarUrl });
       setAvatarChanged(false); // ✅ avatar change has been saved
@@ -206,14 +207,12 @@ export function Settings() {
         profile.avatar_url,
         user.id
       );
-      setProfilePreview(null);
-      profileForm.setValue("avatar_url", null);
-      toast.success("Avatar deleted successfully!");
 
       if (error) throw error;
 
       setProfilePreview(null);
       profileForm.setValue("avatar_url", null);
+      refetch();
       toast.success("Avatar deleted successfully!");
     } catch (error) {
       console.error(error);
