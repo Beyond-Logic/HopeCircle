@@ -78,6 +78,11 @@ export const commentService = {
     return { error };
   },
 
+  // Delete a reply (just a semantic wrapper around deleteComment)
+  async deleteReply(replyId: string) {
+    return await this.deleteComment(replyId);
+  },
+
   // Like a comment
   async likeComment(commentId: string, userId: string) {
     // Insert like into join table (if you want separate table for comment_likes)
@@ -123,5 +128,87 @@ export const commentService = {
     if (countError) return { data: null, error: countError };
 
     return { data: { totalLikes: count }, error: null };
+  },
+
+  // -------------------------
+  // Comment Reports
+  // -------------------------
+
+  // Report a comment
+  async reportComment(
+    commentId: string,
+    reportedBy: string,
+    reason: string,
+    description?: string
+  ) {
+    const { data, error } = await supabase
+      .from("comment_reports")
+      .insert({
+        comment_id: commentId,
+        reported_by: reportedBy,
+        reason,
+        description: description ?? null,
+      })
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  // Get all reports for admin/moderator
+  async getReports(status?: string) {
+    let query = supabase
+      .from("comment_reports")
+      .select(
+        `
+        *,
+        comment:comments(id, content, author_id),
+        reporter:users!reported_by(id, username, first_name, last_name, avatar_url)
+      `
+      )
+      .order("created_at", { ascending: false });
+
+    if (status) {
+      query = query.eq("status", status);
+    }
+
+    const { data, error } = await query;
+    return { data, error };
+  },
+
+  // Get reports submitted by the current user
+  async getMyReports(userId: string) {
+    const { data, error } = await supabase
+      .from("comment_reports")
+      .select(
+        `
+        *,
+        comment:comments(id, content, author_id)
+      `
+      )
+      .eq("reported_by", userId)
+      .order("created_at", { ascending: false });
+
+    return { data, error };
+  },
+
+  // Update report status (admin/moderator only)
+  async updateReportStatus(
+    reportId: string,
+    status: string,
+    reviewedBy: string
+  ) {
+    const { data, error } = await supabase
+      .from("comment_reports")
+      .update({
+        status,
+        reviewed_by: reviewedBy,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", reportId)
+      .select()
+      .single();
+
+    return { data, error };
   },
 };

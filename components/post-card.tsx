@@ -32,6 +32,8 @@ import {
   ImageIcon,
   Globe,
   Send,
+  Eye,
+  Info,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
@@ -54,6 +56,9 @@ import {
 } from "@/hooks/react-query/use-like-comment";
 import { useUpdateComment } from "@/hooks/react-query/use-update-comment";
 import { useLikePost, useUnlikePost } from "@/hooks/react-query/use-like-post";
+import ConfirmDeletePostModal from "./ui/confirm-delete-post-modal";
+import { commentService } from "@/lib/supabase/service/comment-service";
+import ConfirmReportModal from "./ui/confirmation-report-post-modal";
 
 interface Post {
   id: string;
@@ -64,6 +69,7 @@ interface Post {
     country: string;
     avatar: string | null;
     username: string;
+    avatar_preview: string;
   };
   content: string;
   images?: string[];
@@ -88,7 +94,7 @@ interface PostCardProps {
   onDelete?: (postId: string) => void;
 }
 
-export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
+export function PostCard({ post, onEdit, onDelete }: PostCardProps) {
   const { data: user } = useCurrentUserProfile();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
@@ -115,10 +121,20 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { mutate: addComment, isPending } = useAddComment();
 
+  const [open, setOpen] = useState(false);
+  const [type, setType] = useState<"post" | "comment" | "reply">();
+  const [targetId, setTargetId] = useState("");
+
+  const [open1, setOpen1] = useState(false);
+  const [open2, setOpen2] = useState(false);
+  const [open3, setOpen3] = useState(false);
+  const [loading, setLoading] = useState(false);
+
   const {
     data: commentsData,
     error,
     isLoading: isCommentLoading,
+    refetch: refetchComments,
   } = useComments(post.id);
 
   const comments = commentsData?.data || [];
@@ -128,6 +144,9 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
   const isPostLiked = !!post.post_likes?.find(
     (like) => like.user_id === currentUserId
   );
+
+  const [commentId, setCommentId] = useState("");
+  const [replyId, setReplyId] = useState("");
 
   console.log("currentUserId", currentUserId, post);
 
@@ -372,12 +391,38 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
     setIsEditing(false);
   };
 
-  const handleDeletePost = () => {
-    if (
-      onDelete &&
-      window.confirm("Are you sure you want to delete this post?")
-    ) {
-      onDelete(post.id);
+  const handleDeletePost = async () => {
+    try {
+      setLoading(true);
+      await postService.deletePost(post.id);
+      onDelete?.(post.id);
+      setOpen1(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteComment = async () => {
+    try {
+      setLoading(true);
+      await commentService.deleteComment(commentId);
+      onDelete?.(commentId);
+      refetchComments();
+      setOpen2(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteReply = async () => {
+    try {
+      setLoading(true);
+      await commentService.deleteReply(replyId);
+      onDelete?.(replyId);
+      refetchComments();
+      setOpen3(false);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -509,7 +554,8 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
               <Avatar className="w-10 h-10">
                 <AvatarImage
                   src={
-                    post.author.avatar || "/placeholder.svg?height=40&width=40"
+                    post.author.avatar_preview ||
+                    "/placeholder.svg?height=40&width=40"
                   }
                   alt={post.author.name}
                 />
@@ -524,7 +570,7 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
                 >
                   {post.author.name}
                 </Link>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>{post.author.genotype}</span>
                   <span>•</span>
                   <span>{post.author.country}</span>
@@ -556,25 +602,45 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {canEdit && (
+                <DropdownMenuItem className="cursor-pointer">
+                  <Eye className="w-4 h-4 mr-2" />
+                  View Post
+                </DropdownMenuItem>
+                {canEdit ? (
                   <>
-                    <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                    <DropdownMenuItem
+                      onClick={() => setIsEditing(true)}
+                      className="cursor-pointer"
+                    >
                       <Edit className="w-4 h-4 mr-2" />
                       Edit Post
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={handleDeletePost}
-                      className="text-destructive"
+                      onClick={() => setOpen1(true)}
+                      className="cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Delete Post
                     </DropdownMenuItem>
                   </>
+                ) : (
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => {
+                      setOpen(true);
+                      setType("post");
+                      setTargetId(post.id);
+                    }}
+                  >
+                    <Info className="w-4 h-4 mr-2" />
+                    Report Post
+                  </DropdownMenuItem>
                 )}
-                <DropdownMenuItem>
+
+                {/* <DropdownMenuItem>
                   <Share className="w-4 h-4 mr-2" />
                   Share Post
-                </DropdownMenuItem>
+                </DropdownMenuItem> */}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -758,7 +824,7 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
                     onClick={handleEditPost}
                     disabled={isLoading}
                   >
-                    <Check className="w-4 h-4 mr-2" />
+                    <Check className="w-4 h-4" />
                     {isLoading ? "Saving..." : <>Save</>}
                   </Button>
                   <Button size="sm" variant="outline" onClick={cancelEdit}>
@@ -795,7 +861,11 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => handleLike()}
-                className={isPostLiked ? "text-accent hover:text-white" : "hover:text-white"}
+                className={`hover:bg-transparent ${
+                  isPostLiked
+                    ? "text-accent hover:text-accent"
+                    : "hover:text-accent"
+                }`}
               >
                 <Heart
                   className={`w-4 h-4 mr-2 ${
@@ -805,6 +875,7 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
                 {post.likes}
               </Button>
               <Button
+                className="!bg-transparent hover:text-accent"
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowComments(!showComments)}
@@ -812,10 +883,14 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
                 <MessageCircle className="w-4 h-4 mr-2" />
                 {post.comments}
               </Button>
-              <Button variant="ghost" size="sm">
+              {/* <Button
+                variant="ghost"
+                size="sm"
+                className="!bg-transparent hover:text-accent"
+              >
                 <Share className="w-4 h-4 mr-2" />
                 Share
-              </Button>
+              </Button> */}
             </div>
           </div>
 
@@ -867,274 +942,369 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
                   const canEditComment = comment.author.id === currentUserId;
 
                   return (
-                    <div key={comment.id} className="flex gap-3">
+                    <div key={comment.id} className="flex gap-3 relative">
                       <Avatar className="w-8 h-8 flex-shrink-0">
                         <AvatarFallback>
                           <User className="w-4 h-4" />
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex-1">
-                        {/* Edit mode */}
-                        {editingCommentId === comment.id ? (
-                          <div className="space-y-2">
-                            <Textarea
-                              value={editCommentText}
-                              onChange={(e) =>
-                                setEditCommentText(e.target.value)
-                              }
-                              className="min-h-[60px] resize-none"
-                            />
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                disabled={
-                                  isCommentUpdatePending ||
-                                  !editCommentText.trim()
+                      <div className="flex items-start justify-between mb-3 w-full">
+                        <div className="flex-1">
+                          {/* Edit mode */}
+                          {editingCommentId === comment.id ? (
+                            <div className="space-y-2">
+                              <Textarea
+                                value={editCommentText}
+                                onChange={(e) =>
+                                  setEditCommentText(e.target.value)
                                 }
-                                onClick={() => saveCommentEdit(comment?.id)}
-                              >
-                                <Check className="w-3 h-3 mr-1" />
-                                {isCommentUpdatePending ? "Saving..." : "Save"}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={cancelCommentEdit}
-                              >
-                                Cancel
-                              </Button>
+                                className="min-h-[60px] resize-none"
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  disabled={
+                                    isCommentUpdatePending ||
+                                    !editCommentText.trim()
+                                  }
+                                  onClick={() => saveCommentEdit(comment?.id)}
+                                >
+                                  <Check className="w-3 h-3" />
+                                  {isCommentUpdatePending
+                                    ? "Saving..."
+                                    : "Save"}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={cancelCommentEdit}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="bg-muted rounded-lg p-3 pt-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-semibold text-sm">
-                                {comment.author.first_name}{" "}
-                                {comment.author.last_name}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(
-                                  comment.updated_at
-                                ).toLocaleTimeString()}
-                              </span>
+                          ) : (
+                            <div className="bg-muted rounded-lg p-3 pt-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-sm">
+                                  {comment.author.first_name}{" "}
+                                  {comment.author.last_name}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(
+                                    comment.updated_at
+                                  ).toLocaleTimeString()}
+                                </span>
+                              </div>
+                              <p className="text-sm">{comment.content}</p>
                             </div>
-                            <p className="text-sm">{comment.content}</p>
-                          </div>
-                        )}
+                          )}
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-4 mt-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              handleCommentLike(comment.id, isLiked)
-                            }
-                            className={`text-xs h-auto !p-1 ${
-                              isLiked
-                                ? "text-accent hover:text-white"
-                                : "hover:text-white"
-                            }`}
-                          >
-                            <Heart
-                              className={`w-3 h-3 mr-1 ${
-                                isLiked ? "fill-current" : ""
-                              }`}
-                            />
-                            Like <span className="ml-1">{likes_count}</span>
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-xs h-auto !p-1"
-                            onClick={() =>
-                              setReplyingToId(
-                                replyingToId === comment.id ? null : comment.id
-                              )
-                            }
-                          >
-                            Reply
-                          </Button>
-
-                          {canEditComment && (
+                          {/* Actions */}
+                          <div className="flex items-center gap-4 mt-2">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-xs h-auto !p-1"
                               onClick={() =>
-                                startEditingComment(comment.id, comment.content)
+                                handleCommentLike(comment.id, isLiked)
+                              }
+                              className={`text-xs h-auto !p-1 hover:bg-transparent ${
+                                isLiked
+                                  ? "text-accent hover:text-accent"
+                                  : "hover:text-accent"
+                              }`}
+                            >
+                              <Heart
+                                className={`w-3 h-3 mr-1 ${
+                                  isLiked ? "fill-current" : ""
+                                }`}
+                              />
+                              Like <span className="ml-1">{likes_count}</span>
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs h-auto !p-1 hover:bg-transparent hover:text-accent"
+                              onClick={() =>
+                                setReplyingToId(
+                                  replyingToId === comment.id
+                                    ? null
+                                    : comment.id
+                                )
                               }
                             >
-                              <Edit className="w-3 h-3 mr-1" />
-                              Edit
+                              Reply
                             </Button>
-                          )}
-                        </div>
-
-                        {/* Reply box */}
-                        {replyingToId === comment.id && (
-                          <div className="mt-2 ml-8">
-                            <Textarea
-                              value={replyText}
-                              onChange={(e) => setReplyText(e.target.value)}
-                              placeholder="Write a reply..."
-                              className="min-h-[50px] resize-none"
-                            />
-                            <div className="flex gap-2 mt-2">
-                              <Button
-                                size="sm"
-                                disabled={isReplying || !replyText.trim()}
-                                onClick={() => handleReplySubmit(comment.id)}
-                              >
-                                {isReplying ? "Replying..." : "Reply"}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setReplyingToId(null);
-                                  setReplyText("");
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
                           </div>
-                        )}
 
-                        {/* Replies */}
-                        {comment.replies?.length > 0 && (
-                          <div className="mt-3 ml-8 space-y-3">
-                            {
-                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                              comment.replies.map((reply: any) => {
-                                const isReplyLiked =
-                                  reply.likes?.some(
-                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                    (like: any) =>
-                                      like.user.id === currentUserId
-                                  ) || false;
+                          {/* Reply box */}
+                          {replyingToId === comment.id && (
+                            <div className="mt-2 ml-8">
+                              <Textarea
+                                value={replyText}
+                                onChange={(e) => setReplyText(e.target.value)}
+                                placeholder="Write a reply..."
+                                className="min-h-[50px] resize-none"
+                              />
+                              <div className="flex gap-2 mt-2">
+                                <Button
+                                  size="sm"
+                                  disabled={isReplying || !replyText.trim()}
+                                  onClick={() => handleReplySubmit(comment.id)}
+                                >
+                                  {isReplying ? "Replying..." : "Reply"}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setReplyingToId(null);
+                                    setReplyText("");
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          )}
 
-                                const replyLikesCount =
-                                  reply.likes?.length || 0;
-                                const canEditReply =
-                                  reply.author.id === currentUserId;
+                          {/* Replies */}
+                          {comment.replies?.length > 0 && (
+                            <div className="mt-3 ml-8 space-y-3">
+                              {
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                comment.replies.map((reply: any) => {
+                                  const isReplyLiked =
+                                    reply.likes?.some(
+                                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                      (like: any) =>
+                                        like.user.id === currentUserId
+                                    ) || false;
 
-                                return (
-                                  <div key={reply.id} className="flex gap-3">
-                                    <Avatar className="w-6 h-6 flex-shrink-0">
-                                      <AvatarFallback>
-                                        <User className="w-3 h-3" />
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1">
-                                      {/* Edit mode for reply */}
-                                      {editingCommentId === reply.id ? (
-                                        <div className="space-y-2">
-                                          <Textarea
-                                            value={editCommentText}
-                                            onChange={(e) =>
-                                              setEditCommentText(e.target.value)
-                                            }
-                                            className="min-h-[50px] resize-none"
-                                          />
-                                          <div className="flex gap-2">
+                                  const replyLikesCount =
+                                    reply.likes?.length || 0;
+                                  const canEditReply =
+                                    reply.author.id === currentUserId;
+
+                                  return (
+                                    <div key={reply.id} className="flex gap-3">
+                                      <Avatar className="w-6 h-6 flex-shrink-0">
+                                        <AvatarFallback>
+                                          <User className="w-3 h-3" />
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex items-start justify-between mb-3 w-full">
+                                        <div className="flex-1">
+                                          {/* Edit mode for reply */}
+                                          {editingCommentId === reply.id ? (
+                                            <div className="space-y-2">
+                                              <Textarea
+                                                value={editCommentText}
+                                                onChange={(e) =>
+                                                  setEditCommentText(
+                                                    e.target.value
+                                                  )
+                                                }
+                                                className="min-h-[50px] resize-none"
+                                              />
+                                              <div className="flex gap-2">
+                                                <Button
+                                                  size="sm"
+                                                  disabled={
+                                                    isCommentUpdatePending ||
+                                                    !editCommentText.trim()
+                                                  }
+                                                  onClick={() =>
+                                                    saveCommentEdit(reply.id)
+                                                  }
+                                                >
+                                                  <Check className="w-3 h-3" />
+                                                  {isCommentUpdatePending
+                                                    ? "Saving..."
+                                                    : "Save"}
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  onClick={cancelCommentEdit}
+                                                >
+                                                  Cancel
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="bg-muted rounded-lg p-2">
+                                              <div className="flex items-center gap-2 mb-1">
+                                                <span className="font-semibold text-xs">
+                                                  {reply.author.first_name}{" "}
+                                                  {reply.author.last_name}
+                                                </span>
+                                                <span className="text-[10px] text-muted-foreground">
+                                                  {new Date(
+                                                    reply.updated_at
+                                                  ).toLocaleTimeString()}
+                                                </span>
+                                              </div>
+                                              <p className="text-xs">
+                                                {reply.content}
+                                              </p>
+                                            </div>
+                                          )}
+
+                                          {/* Reply actions */}
+                                          <div className="flex items-center gap-3 mt-1">
                                             <Button
+                                              variant="ghost"
                                               size="sm"
-                                              disabled={
-                                                isCommentUpdatePending ||
-                                                !editCommentText.trim()
-                                              }
                                               onClick={() =>
-                                                saveCommentEdit(reply.id)
+                                                handleCommentLike(
+                                                  reply.id,
+                                                  isReplyLiked
+                                                )
                                               }
+                                              className={`text-[10px] h-auto !p-1 hover:bg-transparent ${
+                                                isReplyLiked
+                                                  ? "text-accent hover:text-accent"
+                                                  : "hover:text-accent"
+                                              }`}
                                             >
-                                              <Check className="w-3 h-3 mr-1" />
-                                              {isCommentUpdatePending
-                                                ? "Saving..."
-                                                : "Save"}
-                                            </Button>
-                                            <Button
-                                              size="sm"
-                                              variant="outline"
-                                              onClick={cancelCommentEdit}
-                                            >
-                                              Cancel
+                                              <Heart
+                                                className={`w-3 h-3 mr-1 ${
+                                                  isReplyLiked
+                                                    ? "fill-current"
+                                                    : ""
+                                                }`}
+                                              />
+                                              Like{" "}
+                                              <span className="ml-1">
+                                                {replyLikesCount}
+                                              </span>
                                             </Button>
                                           </div>
                                         </div>
-                                      ) : (
-                                        <div className="bg-muted rounded-lg p-2">
-                                          <div className="flex items-center gap-2 mb-1">
-                                            <span className="font-semibold text-xs">
-                                              {reply.author.first_name}{" "}
-                                              {reply.author.last_name}
-                                            </span>
-                                            <span className="text-[10px] text-muted-foreground">
-                                              {new Date(
-                                                reply.updated_at
-                                              ).toLocaleTimeString()}
-                                            </span>
-                                          </div>
-                                          <p className="text-xs">
-                                            {reply.content}
-                                          </p>
+                                        <div>
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger
+                                              asChild
+                                              className="hover:bg-transparent hover:text-accent"
+                                            >
+                                              <Button variant="ghost" size="sm">
+                                                <MoreHorizontal className="w-2 h-2" />
+                                              </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                              {canEditReply ? (
+                                                <>
+                                                  <DropdownMenuItem
+                                                    onClick={() =>
+                                                      startEditingComment(
+                                                        reply.id,
+                                                        reply.content
+                                                      )
+                                                    }
+                                                    className="cursor-pointer text-xs"
+                                                  >
+                                                    <Edit className="w-4 h-4 mr-2" />
+                                                    Edit
+                                                  </DropdownMenuItem>
+                                                  <DropdownMenuItem
+                                                    onClick={() => {
+                                                      setOpen3(true);
+                                                      setReplyId(reply.id);
+                                                    }}
+                                                    className="cursor-pointer text-xs"
+                                                  >
+                                                    <Trash2 className="w-4 h-4 mr-2" />
+                                                    Delete
+                                                  </DropdownMenuItem>
+                                                </>
+                                              ) : (
+                                                <DropdownMenuItem
+                                                  className="cursor-pointer text-xs"
+                                                  onClick={() => {
+                                                    setOpen(true);
+                                                    setType("reply");
+                                                    setTargetId(reply.id);
+                                                  }}
+                                                >
+                                                  <Info className="w-4 h-4 mr-2" />
+                                                  Report
+                                                </DropdownMenuItem>
+                                              )}
+
+                                              {/* <DropdownMenuItem>
+                  <Share className="w-4 h-4 mr-2" />
+                  Share Post
+                </DropdownMenuItem> */}
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
                                         </div>
-                                      )}
-
-                                      {/* Reply actions */}
-                                      <div className="flex items-center gap-3 mt-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() =>
-                                            handleCommentLike(
-                                              reply.id,
-                                              isReplyLiked
-                                            )
-                                          }
-                                          className={`text-[10px] h-auto !p-1 ${
-                                            isReplyLiked
-                                              ? "text-accent hover:text-white"
-                                              : "hover:text-white"
-                                          }`}
-                                        >
-                                          <Heart
-                                            className={`w-3 h-3 mr-1 ${
-                                              isReplyLiked ? "fill-current" : ""
-                                            }`}
-                                          />
-                                          Like{" "}
-                                          <span className="ml-1">
-                                            {replyLikesCount}
-                                          </span>
-                                        </Button>
-
-                                        {canEditReply && (
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-[10px] h-auto !p-1"
-                                            onClick={() =>
-                                              startEditingComment(
-                                                reply.id,
-                                                reply.content
-                                              )
-                                            }
-                                          >
-                                            <Edit className="w-3 h-3 mr-1" />
-                                            Edit
-                                          </Button>
-                                        )}
                                       </div>
                                     </div>
-                                  </div>
-                                );
-                              })
-                            }
-                          </div>
-                        )}
+                                  );
+                                })
+                              }
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              asChild
+                              className="hover:bg-transparent hover:text-accent"
+                            >
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="w-2 h-2" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {canEditComment ? (
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      startEditingComment(
+                                        comment.id,
+                                        comment.content
+                                      )
+                                    }
+                                    className="cursor-pointer text-xs"
+                                  >
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setOpen2(true);
+                                      setCommentId(comment.id);
+                                    }}
+                                    className="cursor-pointer text-xs"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </>
+                              ) : (
+                                <DropdownMenuItem
+                                  className="cursor-pointer text-xs"
+                                  onClick={() => {
+                                    setOpen(true);
+                                    setType("comment");
+                                    setTargetId(comment.id);
+                                  }}
+                                >
+                                  <Info className="w-4 h-4 mr-2" />
+                                  Report
+                                </DropdownMenuItem>
+                              )}
+
+                              {/* <DropdownMenuItem>
+                  <Share className="w-4 h-4 mr-2" />
+                  Share Post
+                </DropdownMenuItem> */}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1216,6 +1386,35 @@ export function PostCard({ post, onLike, onEdit, onDelete }: PostCardProps) {
           </div>
         </div>
       )}
+      <ConfirmDeletePostModal
+        open={open1}
+        onOpenChange={setOpen1}
+        type="post"
+        onConfirm={handleDeletePost}
+        loading={loading}
+      />
+      <ConfirmDeletePostModal
+        open={open2}
+        onOpenChange={setOpen2}
+        type="comment"
+        onConfirm={handleDeleteComment}
+        loading={loading}
+      />
+      <ConfirmDeletePostModal
+        open={open3}
+        onOpenChange={setOpen3}
+        type="reply"
+        onConfirm={handleDeleteReply}
+        loading={loading}
+      />
+
+      <ConfirmReportModal
+        open={open}
+        onOpenChange={setOpen}
+        type={type as "post" | "comment" | "reply"}
+        userId={user?.user.id as string}
+        targetId={targetId}
+      />
     </>
   );
 }

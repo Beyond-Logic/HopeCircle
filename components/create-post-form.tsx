@@ -3,7 +3,7 @@
 
 import type React from "react";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +21,7 @@ import { ImageIcon, Send, User, X, Users, AtSign, Globe } from "lucide-react";
 import { postService } from "@/lib/supabase/service/post-service";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
 import { useUserFollowers } from "@/hooks/react-query/use-get-user-followers";
+import { authService } from "@/lib/supabase/service/auth-service";
 
 interface CreatePostFormData {
   content: string;
@@ -49,7 +50,12 @@ CreatePostFormProps) {
     groupId || "your-timeline"
   );
   const [taggedUsers, setTaggedUsers] = useState<
-    Array<{ id: string; username: string }>
+    Array<{
+      id: string;
+      username: string;
+      first_name: string;
+      last_name: string;
+    }>
   >([]);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [tagQuery, setTagQuery] = useState("");
@@ -75,12 +81,15 @@ CreatePostFormProps) {
   } = useForm<CreatePostFormData>();
 
   const contentValue = watch("content", "");
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageButtonClick = () => {
-    fileInputRef.current?.click();
-  };
+  const [profilePreview, setProfilePreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    authService
+      .getAvatarUrl(user?.profile?.avatar_url as string)
+      .then(setProfilePreview);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleContentChange = (value: string) => {
     setValue("content", value);
@@ -99,12 +108,17 @@ CreatePostFormProps) {
     }
   };
 
-  const selectUserForTag = (user: { id: string; username: string }) => {
+  const selectUserForTag = (user: {
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+  }) => {
     const atIndex = contentValue.lastIndexOf("@");
     const beforeAt = contentValue.slice(0, atIndex);
     const afterQuery = contentValue.slice(atIndex + tagQuery.length + 1);
 
-    const newContent = `${beforeAt}@${user.username} ${afterQuery}`;
+    const newContent = `${beforeAt}@${user.first_name} ${user.last_name} ${afterQuery}`;
     setValue("content", newContent);
 
     if (!taggedUsers.find((u) => u.id === user.id)) {
@@ -225,12 +239,90 @@ CreatePostFormProps) {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  console.log("taggedUsers:", taggedUsers);
-
   return (
-    <Card>
-      <CardContent className="p-4">
+    <Card className="!p-4">
+      <CardContent className="!p-0">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* {(groupName || selectedGroupId) && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-2">
+              <Users className="w-4 h-4" />
+              <span>Posting in</span>
+              <span className="font-medium text-primary">
+                {groupName ||
+                  userGroups.find((g) => g.id === selectedGroupId)?.name}
+              </span>
+            </div>
+          )} */}
+
+          <div className="flex gap-6">
+            <Avatar className="w-10 h-10 flex-shrink-0 mt-2">
+              <AvatarImage
+                src={profilePreview || `/placeholder.svg?height=40&width=40`}
+                alt="Your avatar"
+              />
+              <AvatarFallback>
+                <User className="w-5 h-5" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 relative">
+              <Textarea
+                {...register("content", {
+                  required: "Please write something to share",
+                  minLength: {
+                    value: 10,
+                    message: "Post must be at least 10 characters",
+                  },
+                })}
+                value={contentValue}
+                onChange={(e) => handleContentChange(e.target.value)}
+                placeholder="Share your thoughts, experiences, or encouragement with the community... Use @ to tag people you follow"
+                // className="min-h-[100px] resize-none border-0 p-0 focus-visible:ring-0 text-base"
+                className="resize-none border-0 p-0 focus-visible:ring-0"
+              />
+              {errors.content && (
+                <p className="text-sm text-destructive mt-1">
+                  {errors.content.message}
+                </p>
+              )}
+
+              {showTagSuggestions && (
+                <div className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
+                  {followedUsers
+                    .filter(
+                      (user) =>
+                        user.username
+                          .toLowerCase()
+                          .includes(tagQuery.toLowerCase()) ||
+                        user.first_name
+                          .toLowerCase()
+                          .includes(tagQuery.toLowerCase()) ||
+                        user.last_name
+                          .toLowerCase()
+                          .includes(tagQuery.toLowerCase())
+                    )
+                    .map((user) => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-muted flex items-center gap-2"
+                        onClick={() => selectUserForTag(user)}
+                      >
+                        <AtSign className="w-4 h-4" />
+                        <div>
+                          <div className="font-medium">
+                            {user.first_name} {user.last_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {user.genotype} • {user.country}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {!groupId && userGroups.length > 1 && (
             <div className="space-y-2">
               {/* <label className="text-sm font-medium text-muted-foreground">
@@ -263,76 +355,6 @@ CreatePostFormProps) {
             </div>
           )}
 
-          {/* {(groupName || selectedGroupId) && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-2">
-              <Users className="w-4 h-4" />
-              <span>Posting in</span>
-              <span className="font-medium text-primary">
-                {groupName ||
-                  userGroups.find((g) => g.id === selectedGroupId)?.name}
-              </span>
-            </div>
-          )} */}
-
-          <div className="flex gap-3">
-            <Avatar className="w-10 h-10 flex-shrink-0">
-              <AvatarImage
-                src="/placeholder.svg?height=40&width=40"
-                alt="Your avatar"
-              />
-              <AvatarFallback>
-                <User className="w-5 h-5" />
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 relative">
-              <Textarea
-                {...register("content", {
-                  required: "Please write something to share",
-                  minLength: {
-                    value: 10,
-                    message: "Post must be at least 10 characters",
-                  },
-                })}
-                value={contentValue}
-                onChange={(e) => handleContentChange(e.target.value)}
-                placeholder="Share your thoughts, experiences, or encouragement with the community... Use @ to tag people you follow"
-                className="min-h-[100px] resize-none border-0 p-0 focus-visible:ring-0 text-base"
-              />
-              {errors.content && (
-                <p className="text-sm text-destructive mt-1">
-                  {errors.content.message}
-                </p>
-              )}
-
-              {showTagSuggestions && (
-                <div className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
-                  {followedUsers
-                    .filter((user) =>
-                      user.username
-                        .toLowerCase()
-                        .includes(tagQuery.toLowerCase())
-                    )
-                    .map((user) => (
-                      <button
-                        key={user.id}
-                        type="button"
-                        className="w-full text-left px-3 py-2 hover:bg-muted flex items-center gap-2"
-                        onClick={() => selectUserForTag(user)}
-                      >
-                        <AtSign className="w-4 h-4" />
-                        <div>
-                          <div className="font-medium">{user.username}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {user.genotype} • {user.country}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                </div>
-              )}
-            </div>
-          </div>
-
           {taggedUsers.length > 0 && (
             <div className="flex flex-wrap gap-2">
               <span className="text-sm text-muted-foreground">Tagged:</span>
@@ -343,7 +365,7 @@ CreatePostFormProps) {
                   className="flex items-center gap-1"
                 >
                   <AtSign className="w-3 h-3" />
-                  {user.username}
+                  {user.first_name} {user.last_name}
                   <button
                     title="remove tag"
                     type="button"
