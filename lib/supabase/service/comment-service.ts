@@ -1,4 +1,5 @@
 import { createClient } from "../client";
+import { authService } from "./auth-service";
 
 const supabase = createClient();
 
@@ -6,6 +7,8 @@ export const commentService = {
   // Get comments for a post (with author + replies)
 
   // Get comments for a post (with author, replies, likes + liked users)
+
+  // Get comments for a post (with author, replies, likes + liked users + avatar previews)
   async getCommentsByPost(postId: string) {
     const { data, error } = await supabase
       .from("comments")
@@ -29,7 +32,93 @@ export const commentService = {
       .is("parent_comment_id", null)
       .order("created_at", { ascending: true });
 
-    return { data, error };
+    if (error) return { data: null, error };
+
+    // ✅ Add avatar previews (author, replies, liked users)
+    const commentsWithAvatars = await Promise.all(
+      (data ?? []).map(async (comment) => {
+        // main author avatar
+        let author_avatar_preview = null;
+        if (comment.author?.avatar_url) {
+          author_avatar_preview = await authService.getAvatarUrl(
+            comment.author.avatar_url
+          );
+        }
+
+        // likes avatars
+        const likesWithAvatars = await Promise.all(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (comment.likes ?? []).map(async (like: any) => {
+            let user_avatar_preview = null;
+            if (like.user?.avatar_url) {
+              user_avatar_preview = await authService.getAvatarUrl(
+                like.user.avatar_url
+              );
+            }
+            return {
+              ...like,
+              user: {
+                ...like.user,
+                avatar_preview: user_avatar_preview,
+              },
+            };
+          })
+        );
+
+        // replies (with their authors + likes avatars)
+        const repliesWithAvatars = await Promise.all(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (comment.replies ?? []).map(async (reply: any) => {
+            let reply_author_avatar_preview = null;
+            if (reply.author?.avatar_url) {
+              reply_author_avatar_preview = await authService.getAvatarUrl(
+                reply.author.avatar_url
+              );
+            }
+
+            const replyLikesWithAvatars = await Promise.all(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (reply.likes ?? []).map(async (like: any) => {
+                let reply_like_avatar_preview = null;
+                if (like.user?.avatar_url) {
+                  reply_like_avatar_preview = await authService.getAvatarUrl(
+                    like.user.avatar_url
+                  );
+                }
+                return {
+                  ...like,
+                  user: {
+                    ...like.user,
+                    avatar_preview: reply_like_avatar_preview,
+                  },
+                };
+              })
+            );
+
+            return {
+              ...reply,
+              author: {
+                ...reply.author,
+                avatar_preview: reply_author_avatar_preview,
+              },
+              likes: replyLikesWithAvatars,
+            };
+          })
+        );
+
+        return {
+          ...comment,
+          author: {
+            ...comment.author,
+            avatar_preview: author_avatar_preview,
+          },
+          likes: likesWithAvatars,
+          replies: repliesWithAvatars,
+        };
+      })
+    );
+
+    return { data: commentsWithAvatars, error: null };
   },
   // Add new comment (supports replies if parentCommentId provided)
   async addComment(

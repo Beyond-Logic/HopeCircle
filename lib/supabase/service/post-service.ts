@@ -34,6 +34,79 @@ export const postService = {
     return data?.signedUrl ?? null;
   },
 
+  // Get single post by ID
+  async getPostById(postId: string) {
+    const { data, error } = await supabase
+      .from("posts")
+      .select(
+        `
+      *,
+      author:users!author_id(
+        id,
+        first_name,
+        username,
+        last_name,
+        avatar_url,
+        genotype,
+        country
+      ),
+      group:groups(id, name, type),
+      post_likes(user_id),
+      comments(count),
+      post_tags(
+        tagged_user:users!tagged_user_id(
+          id,
+          first_name,
+          last_name,
+          username,
+          avatar_url
+        )
+      )
+    `
+      )
+      .eq("id", postId)
+      .single();
+
+    if (error) return { data: null, error };
+
+    // ✅ Add avatar preview for author
+    let avatar_preview = null;
+    if (data?.author?.avatar_url) {
+      avatar_preview = await authService.getAvatarUrl(data.author.avatar_url);
+    }
+
+    // ✅ Add avatar previews for tagged users
+    const postTagsWithAvatars = await Promise.all(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (data?.post_tags ?? []).map(async (tag: any) => {
+        let tag_avatar_preview = null;
+        if (tag?.tagged_user?.avatar_url) {
+          tag_avatar_preview = await authService.getAvatarUrl(
+            tag.tagged_user.avatar_url
+          );
+        }
+        return {
+          ...tag,
+          tagged_user: {
+            ...tag.tagged_user,
+            avatar_preview: tag_avatar_preview,
+          },
+        };
+      })
+    );
+
+    return {
+      data: {
+        ...data,
+        author: {
+          ...data.author,
+          avatar_preview,
+        },
+        post_tags: postTagsWithAvatars,
+      },
+      error: null,
+    };
+  },
   // Get all posts with pagination
   // Get all posts with pagination and filtering
   async getPosts(

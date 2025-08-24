@@ -219,7 +219,7 @@ export function Profile() {
                     </div>
                   </div>
                   {profileData.profile.bio && (
-                    <p className="text-muted-foreground leading-relaxed">
+                    <p className="text-muted-foreground leading-relaxed text-[15px]">
                       {profileData.profile.bio}
                     </p>
                   )}
@@ -263,11 +263,11 @@ export function Profile() {
 
               <div className="flex gap-6 mt-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold">10</div>
+                  <div className="text-xl font-bold">10</div>
                   <div className="text-sm text-muted-foreground">Posts</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold">20</div>
+                  <div className="text-xl font-bold">20</div>
                   <div className="text-sm text-muted-foreground">Groups</div>
                 </div>
               </div>
@@ -340,13 +340,13 @@ export function Profile() {
               </div>
               <div>
                 <h4 className="font-semibold mb-2">Location</h4>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-[15px]">
                   {profileData.profile.country}
                 </p>
               </div>
               <div>
                 <h4 className="font-semibold mb-2">Member Since</h4>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-[15px]">
                   {format(
                     parseISO(profileData.profile.created_at),
                     "MMMM d, yyyy"
@@ -356,7 +356,7 @@ export function Profile() {
               {profileData.profile.bio && (
                 <div>
                   <h4 className="font-semibold mb-2">Bio</h4>
-                  <p className="text-muted-foreground leading-relaxed">
+                  <p className="text-muted-foreground leading-relaxed text-[15px]">
                     {profileData.profile.bio}
                   </p>
                 </div>

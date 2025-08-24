@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Avatar } from "@radix-ui/react-avatar";
 import { authService } from "@/lib/supabase/service/auth-service";
+import Link from "next/link";
 
 export function Feed() {
   const [activeTab, setActiveTab] = useState<
@@ -52,7 +53,6 @@ export function Feed() {
     authService
       .getAvatarUrl(user?.profile?.avatar_url as string)
       .then(setProfilePreview);
-    
   }, [user?.profile?.avatar_url]);
 
   // Merge paginated posts
@@ -127,23 +127,30 @@ export function Feed() {
         >
           <div className="flex gap-3 items-center">
             <Avatar className="w-10 h-10 flex-shrink-0">
-              <AvatarImage
-                src={profilePreview || `/placeholder.svg?height=40&width=40`}
-                alt="Your avatar"
-                className="rounded-full"
-              />
-              <AvatarFallback>
-                <User className="w-5 h-5" />
-              </AvatarFallback>
+              <Link href={`/profile/me`}>
+                <AvatarImage
+                  src={profilePreview || `/placeholder.svg?height=40&width=40`}
+                  alt="Your avatar"
+                  className="rounded-full"
+                />
+              </Link>
+
+              <Link href={`/profile/me`}>
+                <AvatarFallback>
+                  <User className="w-5 h-5" />
+                </AvatarFallback>
+              </Link>
             </Avatar>
+
             <Textarea
               placeholder="Share your thoughts, experiences, or encouragement with the community... Use @ to tag people you follow"
-              className="resize-none pointer-events-none"
+              className="resize-none pointer-events-none text-[15px]"
             />
           </div>
         </Card>
       ) : (
         <CreatePostForm
+          profilePreview={profilePreview as string}
           onPostCreated={() => {
             refetch();
             setShowCreatePost(false);
@@ -153,18 +160,37 @@ export function Feed() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid w-full grid-cols-4 h-auto">
-          <TabsTrigger value="recent">
-            <Clock className="w-4 h-4" /> Recent
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
+          <TabsTrigger
+            value="recent"
+            className="flex items-center gap-2 text-xs md:text-sm"
+          >
+            <Clock className="w-4 h-4" />
+            <span className="hidden sm:inline">Recent</span>
+            <span className="sm:hidden">All</span>
           </TabsTrigger>
-          <TabsTrigger value="my-groups">
-            <Users className="w-4 h-4" /> My Groups
+          <TabsTrigger
+            value="my-groups"
+            className="flex items-center gap-2 text-xs md:text-sm"
+          >
+            <Users className="w-4 h-4" />
+            <span className="hidden sm:inline">My Groups</span>
+            <span className="sm:hidden">Groups</span>
           </TabsTrigger>
-          <TabsTrigger value="following">
-            <UserPlus className="w-4 h-4" /> Following
+          <TabsTrigger
+            value="following"
+            className="flex items-center gap-2 text-xs md:text-sm"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span className="hidden sm:inline">Following</span>
+            <span className="sm:hidden">Follow</span>
           </TabsTrigger>
-          <TabsTrigger value="popular">
-            <TrendingUp className="w-4 h-4" /> Popular
+          <TabsTrigger
+            value="popular"
+            className="flex items-center gap-2 text-xs md:text-sm"
+          >
+            <TrendingUp className="w-4 h-4" />
+            Popular
           </TabsTrigger>
         </TabsList>
 
