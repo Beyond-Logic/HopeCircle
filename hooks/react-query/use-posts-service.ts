@@ -1,22 +1,28 @@
-// hooks/usePostService.ts
-import { useQuery } from "@tanstack/react-query";
 import { postService } from "@/lib/supabase/service/post-service";
+import { useQuery } from "@tanstack/react-query";
 
 interface UseGetPostsOptions {
   page?: number;
   limit?: number;
-  groupId?: string;
+  filter?: "recent" | "my-groups" | "following" | "popular";
+  userId?: string;
 }
 
 export function useGetPosts({
   page = 0,
   limit = 10,
-  groupId,
+  filter = "recent",
+  userId,
 }: UseGetPostsOptions = {}) {
   return useQuery({
-    queryKey: ["posts", { page, limit, groupId }],
+    queryKey: ["posts", { page, limit, filter, userId }],
     queryFn: async () => {
-      const { data, error } = await postService.getPosts(page, limit, groupId);
+      const { data, error } = await postService.getPosts(
+        page,
+        limit,
+        filter,
+        userId
+      );
       if (error)
         throw new Error(
           error && typeof error === "object" && "message" in error
@@ -25,7 +31,7 @@ export function useGetPosts({
         );
       return data;
     },
-    staleTime: 1000 * 60 * 1, // 1 minute
+    staleTime: 1000 * 60 * 1,
     retry: 1,
   });
 }

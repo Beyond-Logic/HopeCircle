@@ -45,6 +45,7 @@ const mockGroupPosts = [
       country: "Nigeria",
       avatar: null,
       username: "amara_johnson",
+      avatar_preview: ""
     },
     content:
       "Just wanted to share that Lagos University Teaching Hospital now has a dedicated sickle cell clinic with shorter wait times! Has anyone else tried it?",
@@ -66,6 +67,7 @@ const mockGroupPosts = [
       country: "Nigeria",
       avatar: null,
       username: "kemi_abebayo",
+      avatar_preview: "",
     },
     content:
       "Sharing my experience with the new hydroxyurea program in Abuja. The process was smooth and the medication is helping a lot. Happy to answer questions!",

@@ -1,5 +1,6 @@
 import { createClient } from "../client";
 import type { CreatePost, UpdatePost } from "@/types/post";
+import { authService } from "./auth-service";
 
 const supabase = createClient();
 
@@ -34,31 +35,82 @@ export const postService = {
   },
 
   // Get all posts with pagination
-  async getPosts(page = 0, limit = 10, groupId?: string) {
-    let query = supabase
-      .from("posts")
-      .select(
-        `
-        *,
-        author:users!author_id(id, first_name, username, last_name, avatar_url, genotype, country),
-        group:groups(id, name, type),
-        post_likes(user_id),
-        comments(count),
-        post_tags(tagged_user:users!tagged_user_id(id, first_name, last_name, username))
+  // Get all posts with pagination and filtering
+  async getPosts(
+    page = 0,
+    limit = 10,
+    filter: "recent" | "my-groups" | "following" | "popular" = "recent",
+    userId?: string
+  ) {
+    let query = supabase.from("posts").select(
       `
-      )
-      .order("created_at", { ascending: false })
-      .range(page * limit, (page + 1) * limit - 1);
+      *,
+      author:users!author_id(id, first_name, username, last_name, avatar_url, genotype, country),
+      group:groups(id, name, type),
+      post_likes(user_id),
+      comments(count),
+      post_tags(tagged_user:users!tagged_user_id(id, first_name, last_name, username))
+    `
+    );
 
-    if (groupId) {
-      query = query.eq("group_id", groupId);
+    // ✅ Filtering
+    if (filter === "my-groups" && userId) {
+      // Fetch group IDs for the user first
+      const { data: groupMembers, error: groupError } = await supabase
+        .from("group_members")
+        .select("group_id")
+        .eq("user_id", userId);
+
+      if (groupError) throw groupError;
+
+      const groupIds = groupMembers?.map((gm) => gm.group_id) ?? [];
+      query = query.in("group_id", groupIds);
     }
+
+    if (filter === "following" && userId) {
+      // Fetch following IDs for the user first
+      const { data: followingRows, error: followingError } = await supabase
+        .from("user_follows")
+        .select("following_id")
+        .eq("follower_id", userId);
+
+      if (followingError) throw followingError;
+
+      const followingIds = followingRows?.map((row) => row.following_id) ?? [];
+      query = query.in("author_id", followingIds);
+    }
+
+    if (filter === "popular") {
+      query = query.order("likes_count", { ascending: false });
+    } else {
+      query = query.order("created_at", { ascending: false });
+    }
+
+    // ✅ Pagination
+    query = query.range(page * limit, (page + 1) * limit - 1);
 
     const { data, error } = await query;
 
-    return { data, error };
+    // ✅ Add avatar preview for each author
+    const postsWithAvatars = await Promise.all(
+      (data ?? []).map(async (post) => {
+        let avatar_preview = null;
+        if (post.author?.avatar_url) {
+          avatar_preview = await authService.getAvatarUrl(
+            post.author.avatar_url
+          );
+        }
+        return {
+          ...post,
+          author: {
+            ...post.author,
+            avatar_preview,
+          },
+        };
+      })
+    );
+    return { data: postsWithAvatars, error: error };
   },
-
   // Create new post
   async createPost(post: CreatePost) {
     const { data, error } = await supabase
@@ -97,12 +149,36 @@ export const postService = {
   },
 
   // Delete post
+  // Delete post and associated images from storage
   async deletePost(postId: string) {
-    const { error } = await supabase.from("posts").delete().eq("id", postId);
+    // 1. Get the post with its images
+    const { data: post, error: fetchError } = await supabase
+      .from("posts")
+      .select("images")
+      .eq("id", postId)
+      .single();
 
-    return { error };
+    if (fetchError) return { error: fetchError };
+
+    // 2. Delete the post (this cascades deletes to comments, likes, tags, etc.)
+    const { error: postError } = await supabase
+      .from("posts")
+      .delete()
+      .eq("id", postId);
+
+    if (postError) return { error: postError };
+
+    // 3. Delete images from storage if any exist
+    if (post?.images && post.images.length > 0) {
+      const { error: storageError } = await supabase.storage
+        .from("post-images") //
+        .remove(post.images);
+
+      if (storageError) return { error: storageError };
+    }
+
+    return { error: null };
   },
-
   // Like/unlike post
 
   async likePost(postId: string, userId: string) {
@@ -159,6 +235,84 @@ export const postService = {
     }));
 
     const { data, error } = await supabase.from("post_tags").insert(tags);
+
+    return { data, error };
+  },
+
+  // 🚨 Report a post
+  async reportPost(
+    postId: string,
+    reportedBy: string,
+    reason:
+      | "spam"
+      | "harassment"
+      | "inappropriate_content"
+      | "misinformation"
+      | "other",
+    description?: string
+  ) {
+    const { data, error } = await supabase
+      .from("post_reports")
+      .insert({
+        post_id: postId,
+        reported_by: reportedBy,
+        reason,
+        description: description ?? null,
+      })
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  // Get reports created by current user
+  async getUserReports(userId: string) {
+    const { data, error } = await supabase
+      .from("post_reports")
+      .select(
+        `
+        *,
+        post:posts(id, content, images, author:users(id, username))
+      `
+      )
+      .eq("reported_by", userId)
+      .order("created_at", { ascending: false });
+
+    return { data, error };
+  },
+
+  // (optional) Admin fetch all reports
+  async getAllReports() {
+    const { data, error } = await supabase
+      .from("post_reports")
+      .select(
+        `
+        *,
+        post:posts(id, content, images, author:users(id, username)),
+        reporter:users!reported_by(id, username, avatar_url)
+      `
+      )
+      .order("created_at", { ascending: false });
+
+    return { data, error };
+  },
+
+  // Update report status for a post (admin/moderator only)
+  async updatePostReportStatus(
+    reportId: string,
+    status: string,
+    reviewedBy: string
+  ) {
+    const { data, error } = await supabase
+      .from("post_reports")
+      .update({
+        status,
+        reviewed_by: reviewedBy,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", reportId)
+      .select()
+      .single();
 
     return { data, error };
   },

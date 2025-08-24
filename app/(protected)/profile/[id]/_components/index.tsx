@@ -38,6 +38,7 @@ const mockUserPosts = [
       country: "Nigeria",
       avatar: null,
       username: "amara_j",
+      avatar_preview: ""
     },
     content:
       "Just had my monthly check-up and my hemoglobin levels are stable! Feeling grateful for this community's support during my tough days.",
