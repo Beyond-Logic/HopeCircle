@@ -59,6 +59,8 @@ import { useLikePost, useUnlikePost } from "@/hooks/react-query/use-like-post";
 import ConfirmDeletePostModal from "./ui/confirm-delete-post-modal";
 import { commentService } from "@/lib/supabase/service/comment-service";
 import ConfirmReportModal from "./ui/confirmation-report-post-modal";
+import { useSearchParams } from "next/navigation";
+import { authService } from "@/lib/supabase/service/auth-service";
 
 interface Post {
   id: string;
@@ -92,10 +94,33 @@ interface PostCardProps {
   onLike?: (postId: string) => void;
   onEdit?: (postId: string, newContent: string) => void;
   onDelete?: (postId: string) => void;
+  isSinglePost?: boolean;
+  profilePreview?: string;
 }
 
-export function PostCard({ post, onEdit, onDelete }: PostCardProps) {
+export function PostCard({
+  post,
+  onEdit,
+  onDelete,
+  isSinglePost,
+}: // profilePreview,
+PostCardProps) {
   const { data: user } = useCurrentUserProfile();
+
+  const searchParams = useSearchParams();
+
+  const [profilePreview, setProfilePreview] = useState<string | null>(null);
+
+  console.log("profilepreview", profilePreview);
+
+  useEffect(() => {
+    authService
+      .getAvatarUrl(user?.profile?.avatar_url as string)
+      .then(setProfilePreview);
+  }, [user?.profile?.avatar_url]);
+
+  const showCommentsSection = searchParams.get("showComments") === "true";
+
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [showAllImages, setShowAllImages] = useState(false);
@@ -163,6 +188,12 @@ export function PostCard({ post, onEdit, onDelete }: PostCardProps) {
   const imageUrls = data;
 
   // console.log("post", post);
+
+  useEffect(() => {
+    if (showCommentsSection) {
+      setShowComments(true);
+    }
+  }, [showCommentsSection]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -488,6 +519,8 @@ export function PostCard({ post, onEdit, onDelete }: PostCardProps) {
   const [content, setContent] = useState(post.content || "");
   const contentValue = content;
 
+  console.log("comments", comments);
+
   useEffect(() => {
     setTaggedUsers(
       post.postTags
@@ -546,23 +579,25 @@ export function PostCard({ post, onEdit, onDelete }: PostCardProps) {
 
   return (
     <>
-      <Card>
+      <Card className="text-[15px]">
         <CardContent className="p-4">
           {/* Post Header */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-3">
-              <Avatar className="w-10 h-10">
-                <AvatarImage
-                  src={
-                    post.author.avatar_preview ||
-                    "/placeholder.svg?height=40&width=40"
-                  }
-                  alt={post.author.name}
-                />
-                <AvatarFallback>
-                  <User className="w-5 h-5" />
-                </AvatarFallback>
-              </Avatar>
+              <Link href={`/profile/${post.author.username}`}>
+                <Avatar className="w-10 h-10">
+                  <AvatarImage
+                    src={
+                      post.author.avatar_preview ||
+                      "/placeholder.svg?height=40&width=40"
+                    }
+                    alt={post.author.name}
+                  />
+                  <AvatarFallback>
+                    <User className="w-5 h-5" />
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
               <div>
                 <Link
                   href={`/profile/${post.author.username}`}
@@ -571,10 +606,12 @@ export function PostCard({ post, onEdit, onDelete }: PostCardProps) {
                   {post.author.name}
                 </Link>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{post.author.genotype}</span>
-                  <span>•</span>
-                  <span>{post.author.country}</span>
-                  <span>•</span>
+                  <div className="hidden">
+                    <span>{post.author.genotype}</span>
+                    <span>•</span>
+                    <span>{post.author.country}</span>
+                    <span>•</span>
+                  </div>
                   <span>
                     {post.updatedAt &&
                       formatDistanceToNow(post.updatedAt, { addSuffix: true })}
@@ -602,10 +639,16 @@ export function PostCard({ post, onEdit, onDelete }: PostCardProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem className="cursor-pointer">
-                  <Eye className="w-4 h-4 mr-2" />
-                  View Post
-                </DropdownMenuItem>
+                {isSinglePost ? (
+                  <></>
+                ) : (
+                  <Link href={`/post/${post.id}`}>
+                    <DropdownMenuItem className="cursor-pointer">
+                      <Eye className="w-4 h-4 mr-2" />
+                      View Post
+                    </DropdownMenuItem>
+                  </Link>
+                )}
                 {canEdit ? (
                   <>
                     <DropdownMenuItem
@@ -874,15 +917,29 @@ export function PostCard({ post, onEdit, onDelete }: PostCardProps) {
                 />
                 {post.likes}
               </Button>
-              <Button
-                className="!bg-transparent hover:text-accent"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowComments(!showComments)}
-              >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                {post.comments}
-              </Button>
+              {isSinglePost ? (
+                <Button
+                  className="!bg-transparent hover:text-accent"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowComments(!showComments)}
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  {post.comments}
+                </Button>
+              ) : (
+                <Link href={`/post/${post.id}?showComments=true#showComments`}>
+                  <Button
+                    className="!bg-transparent hover:text-accent"
+                    variant="ghost"
+                    size="sm"
+                  >
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    {post.comments}
+                  </Button>
+                </Link>
+              )}
+
               {/* <Button
                 variant="ghost"
                 size="sm"
@@ -896,12 +953,14 @@ export function PostCard({ post, onEdit, onDelete }: PostCardProps) {
 
           {/* Comments Section */}
           {showComments && (
-            <div className="mt-4 pt-4 border-t space-y-4">
+            <div className="mt-4 pt-4 border-t space-y-4" id="showComments">
               {/* Add Comment */}
               <div className="flex gap-3">
-                <Avatar className="w-8 h-8 flex-shrink-0">
+                <Avatar className="w-8 h-8 flex-shrink-0 mt-2">
                   <AvatarImage
-                    src="/placeholder.svg?height=32&width=32"
+                    src={
+                      profilePreview || "/placeholder.svg?height=32&width=32"
+                    }
                     alt="Your avatar"
                   />
                   <AvatarFallback>
@@ -931,384 +990,420 @@ export function PostCard({ post, onEdit, onDelete }: PostCardProps) {
 
               {/* Comments List */}
               <div className="space-y-3">
-                {comments.map((comment) => {
-                  const isLiked =
-                    comment.likes?.some(
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      (like: any) => like.user.id === currentUserId
-                    ) || false;
+                {comments?.length > 0 ? (
+                  comments.map((comment) => {
+                    const isLiked =
+                      comment.likes?.some(
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        (like: any) => like.user.id === currentUserId
+                      ) || false;
 
-                  const likes_count = comment.likes?.length || 0;
-                  const canEditComment = comment.author.id === currentUserId;
+                    const likes_count = comment.likes?.length || 0;
+                    const canEditComment = comment.author.id === currentUserId;
 
-                  return (
-                    <div key={comment.id} className="flex gap-3 relative">
-                      <Avatar className="w-8 h-8 flex-shrink-0">
-                        <AvatarFallback>
-                          <User className="w-4 h-4" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex items-start justify-between mb-3 w-full">
-                        <div className="flex-1">
-                          {/* Edit mode */}
-                          {editingCommentId === comment.id ? (
-                            <div className="space-y-2">
-                              <Textarea
-                                value={editCommentText}
-                                onChange={(e) =>
-                                  setEditCommentText(e.target.value)
-                                }
-                                className="min-h-[60px] resize-none"
-                              />
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  disabled={
-                                    isCommentUpdatePending ||
-                                    !editCommentText.trim()
+                    return (
+                      <div key={comment.id} className="flex gap-3 relative">
+                        <Avatar className="w-8 h-8 flex-shrink-0">
+                          <AvatarImage
+                            src={
+                              comment.author.avatar_preview ||
+                              "/placeholder.svg?height=32&width=32"
+                            }
+                            alt="Your avatar"
+                          />
+                          <AvatarFallback>
+                            <User className="w-4 h-4" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex items-start justify-between mb-3 w-full">
+                          <div className="flex-1">
+                            {/* Edit mode */}
+                            {editingCommentId === comment.id ? (
+                              <div className="space-y-2">
+                                <Textarea
+                                  value={editCommentText}
+                                  onChange={(e) =>
+                                    setEditCommentText(e.target.value)
                                   }
-                                  onClick={() => saveCommentEdit(comment?.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                  {isCommentUpdatePending
-                                    ? "Saving..."
-                                    : "Save"}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={cancelCommentEdit}
-                                >
-                                  Cancel
-                                </Button>
+                                  className="min-h-[60px] resize-none"
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    disabled={
+                                      isCommentUpdatePending ||
+                                      !editCommentText.trim()
+                                    }
+                                    onClick={() => saveCommentEdit(comment?.id)}
+                                  >
+                                    <Check className="w-3 h-3" />
+                                    {isCommentUpdatePending
+                                      ? "Saving..."
+                                      : "Save"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={cancelCommentEdit}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
                               </div>
-                            </div>
-                          ) : (
-                            <div className="bg-muted rounded-lg p-3 pt-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-semibold text-sm">
-                                  {comment.author.first_name}{" "}
-                                  {comment.author.last_name}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(
-                                    comment.updated_at
-                                  ).toLocaleTimeString()}
-                                </span>
+                            ) : (
+                              <div className="bg-muted rounded-lg p-3 pt-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-semibold text-sm">
+                                    {comment.author.first_name}{" "}
+                                    {comment.author.last_name}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(
+                                      comment.updated_at
+                                    ).toLocaleTimeString()}
+                                  </span>
+                                </div>
+                                <p className="text-sm">{comment.content}</p>
                               </div>
-                              <p className="text-sm">{comment.content}</p>
-                            </div>
-                          )}
+                            )}
 
-                          {/* Actions */}
-                          <div className="flex items-center gap-4 mt-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleCommentLike(comment.id, isLiked)
-                              }
-                              className={`text-xs h-auto !p-1 hover:bg-transparent ${
-                                isLiked
-                                  ? "text-accent hover:text-accent"
-                                  : "hover:text-accent"
-                              }`}
-                            >
-                              <Heart
-                                className={`w-3 h-3 mr-1 ${
-                                  isLiked ? "fill-current" : ""
+                            {/* Actions */}
+                            <div className="flex items-center gap-4 mt-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  handleCommentLike(comment.id, isLiked)
+                                }
+                                className={`text-xs h-auto !p-1 hover:bg-transparent ${
+                                  isLiked
+                                    ? "text-accent hover:text-accent"
+                                    : "hover:text-accent"
                                 }`}
-                              />
-                              Like <span className="ml-1">{likes_count}</span>
-                            </Button>
+                              >
+                                <Heart
+                                  className={`w-3 h-3 mr-1 ${
+                                    isLiked ? "fill-current" : ""
+                                  }`}
+                                />
+                                Like <span className="ml-1">{likes_count}</span>
+                              </Button>
 
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-xs h-auto !p-1 hover:bg-transparent hover:text-accent"
-                              onClick={() =>
-                                setReplyingToId(
-                                  replyingToId === comment.id
-                                    ? null
-                                    : comment.id
-                                )
-                              }
-                            >
-                              Reply
-                            </Button>
-                          </div>
-
-                          {/* Reply box */}
-                          {replyingToId === comment.id && (
-                            <div className="mt-2 ml-8">
-                              <Textarea
-                                value={replyText}
-                                onChange={(e) => setReplyText(e.target.value)}
-                                placeholder="Write a reply..."
-                                className="min-h-[50px] resize-none"
-                              />
-                              <div className="flex gap-2 mt-2">
-                                <Button
-                                  size="sm"
-                                  disabled={isReplying || !replyText.trim()}
-                                  onClick={() => handleReplySubmit(comment.id)}
-                                >
-                                  {isReplying ? "Replying..." : "Reply"}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setReplyingToId(null);
-                                    setReplyText("");
-                                  }}
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs h-auto !p-1 hover:bg-transparent hover:text-accent"
+                                onClick={() =>
+                                  setReplyingToId(
+                                    replyingToId === comment.id
+                                      ? null
+                                      : comment.id
+                                  )
+                                }
+                              >
+                                Reply
+                              </Button>
                             </div>
-                          )}
 
-                          {/* Replies */}
-                          {comment.replies?.length > 0 && (
-                            <div className="mt-3 ml-8 space-y-3">
-                              {
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                comment.replies.map((reply: any) => {
-                                  const isReplyLiked =
-                                    reply.likes?.some(
-                                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                      (like: any) =>
-                                        like.user.id === currentUserId
-                                    ) || false;
+                            {/* Reply box */}
+                            {replyingToId === comment.id && (
+                              <div className="mt-2 ml-8">
+                                <Textarea
+                                  value={replyText}
+                                  onChange={(e) => setReplyText(e.target.value)}
+                                  placeholder="Write a reply..."
+                                  className="min-h-[50px] resize-none"
+                                />
+                                <div className="flex gap-2 mt-2">
+                                  <Button
+                                    size="sm"
+                                    disabled={isReplying || !replyText.trim()}
+                                    onClick={() =>
+                                      handleReplySubmit(comment.id)
+                                    }
+                                  >
+                                    {isReplying ? "Replying..." : "Reply"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setReplyingToId(null);
+                                      setReplyText("");
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
 
-                                  const replyLikesCount =
-                                    reply.likes?.length || 0;
-                                  const canEditReply =
-                                    reply.author.id === currentUserId;
+                            {/* Replies */}
+                            {comment.replies?.length > 0 && (
+                              <div className="mt-3 ml-8 space-y-3">
+                                {
+                                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                  comment.replies.map((reply: any) => {
+                                    const isReplyLiked =
+                                      reply.likes?.some(
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                        (like: any) =>
+                                          like.user.id === currentUserId
+                                      ) || false;
 
-                                  return (
-                                    <div key={reply.id} className="flex gap-3">
-                                      <Avatar className="w-6 h-6 flex-shrink-0">
-                                        <AvatarFallback>
-                                          <User className="w-3 h-3" />
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <div className="flex items-start justify-between mb-3 w-full">
-                                        <div className="flex-1">
-                                          {/* Edit mode for reply */}
-                                          {editingCommentId === reply.id ? (
-                                            <div className="space-y-2">
-                                              <Textarea
-                                                value={editCommentText}
-                                                onChange={(e) =>
-                                                  setEditCommentText(
-                                                    e.target.value
+                                    const replyLikesCount =
+                                      reply.likes?.length || 0;
+                                    const canEditReply =
+                                      reply.author.id === currentUserId;
+
+                                    return (
+                                      <div
+                                        key={reply.id}
+                                        className="flex gap-3"
+                                      >
+                                        <Avatar className="w-6 h-6 flex-shrink-0">
+                                          <AvatarImage
+                                            src={
+                                              reply.author.avatar_preview ||
+                                              "/placeholder.svg?height=32&width=32"
+                                            }
+                                            alt="Your avatar"
+                                          />
+                                          <AvatarFallback>
+                                            <User className="w-3 h-3" />
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex items-start justify-between mb-3 w-full">
+                                          <div className="flex-1">
+                                            {/* Edit mode for reply */}
+                                            {editingCommentId === reply.id ? (
+                                              <div className="space-y-2">
+                                                <Textarea
+                                                  value={editCommentText}
+                                                  onChange={(e) =>
+                                                    setEditCommentText(
+                                                      e.target.value
+                                                    )
+                                                  }
+                                                  className="min-h-[50px] resize-none"
+                                                />
+                                                <div className="flex gap-2">
+                                                  <Button
+                                                    size="sm"
+                                                    disabled={
+                                                      isCommentUpdatePending ||
+                                                      !editCommentText.trim()
+                                                    }
+                                                    onClick={() =>
+                                                      saveCommentEdit(reply.id)
+                                                    }
+                                                  >
+                                                    <Check className="w-3 h-3" />
+                                                    {isCommentUpdatePending
+                                                      ? "Saving..."
+                                                      : "Save"}
+                                                  </Button>
+                                                  <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={cancelCommentEdit}
+                                                  >
+                                                    Cancel
+                                                  </Button>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <div className="bg-muted rounded-lg p-2">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                  <span className="font-semibold text-xs">
+                                                    {reply.author.first_name}{" "}
+                                                    {reply.author.last_name}
+                                                  </span>
+                                                  <span className="text-[10px] text-muted-foreground">
+                                                    {new Date(
+                                                      reply.updated_at
+                                                    ).toLocaleTimeString()}
+                                                  </span>
+                                                </div>
+                                                <p className="text-xs">
+                                                  {reply.content}
+                                                </p>
+                                              </div>
+                                            )}
+
+                                            {/* Reply actions */}
+                                            <div className="flex items-center gap-3 mt-1">
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() =>
+                                                  handleCommentLike(
+                                                    reply.id,
+                                                    isReplyLiked
                                                   )
                                                 }
-                                                className="min-h-[50px] resize-none"
-                                              />
-                                              <div className="flex gap-2">
-                                                <Button
-                                                  size="sm"
-                                                  disabled={
-                                                    isCommentUpdatePending ||
-                                                    !editCommentText.trim()
-                                                  }
-                                                  onClick={() =>
-                                                    saveCommentEdit(reply.id)
-                                                  }
-                                                >
-                                                  <Check className="w-3 h-3" />
-                                                  {isCommentUpdatePending
-                                                    ? "Saving..."
-                                                    : "Save"}
-                                                </Button>
-                                                <Button
-                                                  size="sm"
-                                                  variant="outline"
-                                                  onClick={cancelCommentEdit}
-                                                >
-                                                  Cancel
-                                                </Button>
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            <div className="bg-muted rounded-lg p-2">
-                                              <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-semibold text-xs">
-                                                  {reply.author.first_name}{" "}
-                                                  {reply.author.last_name}
-                                                </span>
-                                                <span className="text-[10px] text-muted-foreground">
-                                                  {new Date(
-                                                    reply.updated_at
-                                                  ).toLocaleTimeString()}
-                                                </span>
-                                              </div>
-                                              <p className="text-xs">
-                                                {reply.content}
-                                              </p>
-                                            </div>
-                                          )}
-
-                                          {/* Reply actions */}
-                                          <div className="flex items-center gap-3 mt-1">
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() =>
-                                                handleCommentLike(
-                                                  reply.id,
+                                                className={`text-[10px] h-auto !p-1 hover:bg-transparent ${
                                                   isReplyLiked
-                                                )
-                                              }
-                                              className={`text-[10px] h-auto !p-1 hover:bg-transparent ${
-                                                isReplyLiked
-                                                  ? "text-accent hover:text-accent"
-                                                  : "hover:text-accent"
-                                              }`}
-                                            >
-                                              <Heart
-                                                className={`w-3 h-3 mr-1 ${
-                                                  isReplyLiked
-                                                    ? "fill-current"
-                                                    : ""
+                                                    ? "text-accent hover:text-accent"
+                                                    : "hover:text-accent"
                                                 }`}
-                                              />
-                                              Like{" "}
-                                              <span className="ml-1">
-                                                {replyLikesCount}
-                                              </span>
-                                            </Button>
+                                              >
+                                                <Heart
+                                                  className={`w-3 h-3 mr-1 ${
+                                                    isReplyLiked
+                                                      ? "fill-current"
+                                                      : ""
+                                                  }`}
+                                                />
+                                                Like{" "}
+                                                <span className="ml-1">
+                                                  {replyLikesCount}
+                                                </span>
+                                              </Button>
+                                            </div>
+                                          </div>
+                                          <div>
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger
+                                                asChild
+                                                className="hover:bg-transparent hover:text-accent"
+                                              >
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                >
+                                                  <MoreHorizontal className="w-2 h-2" />
+                                                </Button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent align="end">
+                                                {canEditReply ? (
+                                                  <>
+                                                    <DropdownMenuItem
+                                                      onClick={() =>
+                                                        startEditingComment(
+                                                          reply.id,
+                                                          reply.content
+                                                        )
+                                                      }
+                                                      className="cursor-pointer text-xs"
+                                                    >
+                                                      <Edit className="w-4 h-4 mr-2" />
+                                                      Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                      onClick={() => {
+                                                        setOpen3(true);
+                                                        setReplyId(reply.id);
+                                                      }}
+                                                      className="cursor-pointer text-xs"
+                                                    >
+                                                      <Trash2 className="w-4 h-4 mr-2" />
+                                                      Delete
+                                                    </DropdownMenuItem>
+                                                  </>
+                                                ) : (
+                                                  <DropdownMenuItem
+                                                    className="cursor-pointer text-xs"
+                                                    onClick={() => {
+                                                      setOpen(true);
+                                                      setType("reply");
+                                                      setTargetId(reply.id);
+                                                    }}
+                                                  >
+                                                    <Info className="w-4 h-4 mr-2" />
+                                                    Report
+                                                  </DropdownMenuItem>
+                                                )}
+
+                                                {/* <DropdownMenuItem>
+                  <Share className="w-4 h-4 mr-2" />
+                  Share Post
+                </DropdownMenuItem> */}
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
                                           </div>
                                         </div>
-                                        <div>
-                                          <DropdownMenu>
-                                            <DropdownMenuTrigger
-                                              asChild
-                                              className="hover:bg-transparent hover:text-accent"
-                                            >
-                                              <Button variant="ghost" size="sm">
-                                                <MoreHorizontal className="w-2 h-2" />
-                                              </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                              {canEditReply ? (
-                                                <>
-                                                  <DropdownMenuItem
-                                                    onClick={() =>
-                                                      startEditingComment(
-                                                        reply.id,
-                                                        reply.content
-                                                      )
-                                                    }
-                                                    className="cursor-pointer text-xs"
-                                                  >
-                                                    <Edit className="w-4 h-4 mr-2" />
-                                                    Edit
-                                                  </DropdownMenuItem>
-                                                  <DropdownMenuItem
-                                                    onClick={() => {
-                                                      setOpen3(true);
-                                                      setReplyId(reply.id);
-                                                    }}
-                                                    className="cursor-pointer text-xs"
-                                                  >
-                                                    <Trash2 className="w-4 h-4 mr-2" />
-                                                    Delete
-                                                  </DropdownMenuItem>
-                                                </>
-                                              ) : (
-                                                <DropdownMenuItem
-                                                  className="cursor-pointer text-xs"
-                                                  onClick={() => {
-                                                    setOpen(true);
-                                                    setType("reply");
-                                                    setTargetId(reply.id);
-                                                  }}
-                                                >
-                                                  <Info className="w-4 h-4 mr-2" />
-                                                  Report
-                                                </DropdownMenuItem>
-                                              )}
-
-                                              {/* <DropdownMenuItem>
-                  <Share className="w-4 h-4 mr-2" />
-                  Share Post
-                </DropdownMenuItem> */}
-                                            </DropdownMenuContent>
-                                          </DropdownMenu>
-                                        </div>
                                       </div>
-                                    </div>
-                                  );
-                                })
-                              }
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger
-                              asChild
-                              className="hover:bg-transparent hover:text-accent"
-                            >
-                              <Button variant="ghost" size="sm">
-                                <MoreHorizontal className="w-2 h-2" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {canEditComment ? (
-                                <>
+                                    );
+                                  })
+                                }
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                asChild
+                                className="hover:bg-transparent hover:text-accent"
+                              >
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="w-2 h-2" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {canEditComment ? (
+                                  <>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        startEditingComment(
+                                          comment.id,
+                                          comment.content
+                                        )
+                                      }
+                                      className="cursor-pointer text-xs"
+                                    >
+                                      <Edit className="w-4 h-4 mr-2" />
+                                      Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setOpen2(true);
+                                        setCommentId(comment.id);
+                                      }}
+                                      className="cursor-pointer text-xs"
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </>
+                                ) : (
                                   <DropdownMenuItem
-                                    onClick={() =>
-                                      startEditingComment(
-                                        comment.id,
-                                        comment.content
-                                      )
-                                    }
                                     className="cursor-pointer text-xs"
-                                  >
-                                    <Edit className="w-4 h-4 mr-2" />
-                                    Edit
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
                                     onClick={() => {
-                                      setOpen2(true);
-                                      setCommentId(comment.id);
+                                      setOpen(true);
+                                      setType("comment");
+                                      setTargetId(comment.id);
                                     }}
-                                    className="cursor-pointer text-xs"
                                   >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Delete
+                                    <Info className="w-4 h-4 mr-2" />
+                                    Report
                                   </DropdownMenuItem>
-                                </>
-                              ) : (
-                                <DropdownMenuItem
-                                  className="cursor-pointer text-xs"
-                                  onClick={() => {
-                                    setOpen(true);
-                                    setType("comment");
-                                    setTargetId(comment.id);
-                                  }}
-                                >
-                                  <Info className="w-4 h-4 mr-2" />
-                                  Report
-                                </DropdownMenuItem>
-                              )}
+                                )}
 
-                              {/* <DropdownMenuItem>
+                                {/* <DropdownMenuItem>
                   <Share className="w-4 h-4 mr-2" />
                   Share Post
                 </DropdownMenuItem> */}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
                       </div>
+                    );
+                  })
+                ) : (
+                  <Card className="p-6 text-center border-dashed border-2">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <MessageCircle className="w-6 h-6 text-muted-foreground" />
+                      <p className="text-muted-foreground text-sm">
+                        No comments yet —{" "}
+                        <span className="font-medium text-foreground">
+                          be the first to share your thoughts.
+                        </span>
+                      </p>
                     </div>
-                  );
-                })}
+                  </Card>
+                )}
               </div>
             </div>
           )}

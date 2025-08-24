@@ -35,3 +35,22 @@ export function useGetPosts({
     retry: 1,
   });
 }
+
+export function useGetPostById(postId: string) {
+  return useQuery({
+    queryKey: ["post", postId],
+    queryFn: async () => {
+      const { data, error } = await postService.getPostById(postId);
+      if (error)
+        throw new Error(
+          error && typeof error === "object" && "message" in error
+            ? error.message
+            : error || "Failed to fetch post"
+        );
+      return data;
+    },
+    enabled: !!postId, // only run if postId is provided
+    staleTime: 1000 * 60 * 1,
+    retry: 1,
+  });
+}

@@ -3,7 +3,7 @@
 
 import type React from "react";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,11 +33,13 @@ interface CreatePostFormProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onPostCreated: (post: any) => void;
   groupId?: string;
+  profilePreview?: string;
   groupName?: string;
 }
 
 export function CreatePostForm({
   onPostCreated,
+  profilePreview,
   groupId,
 }: // groupName,
 CreatePostFormProps) {
@@ -82,14 +84,6 @@ CreatePostFormProps) {
 
   const contentValue = watch("content", "");
 
-  const [profilePreview, setProfilePreview] = useState<string | null>(null);
-
-  useEffect(() => {
-    authService
-      .getAvatarUrl(user?.profile?.avatar_url as string)
-      .then(setProfilePreview);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const handleContentChange = (value: string) => {
     setValue("content", value);
@@ -277,7 +271,7 @@ CreatePostFormProps) {
                 onChange={(e) => handleContentChange(e.target.value)}
                 placeholder="Share your thoughts, experiences, or encouragement with the community... Use @ to tag people you follow"
                 // className="min-h-[100px] resize-none border-0 p-0 focus-visible:ring-0 text-base"
-                className="resize-none border-0 p-0 focus-visible:ring-0"
+                className="resize-none border-0 p-0 focus-visible:ring-0 text-[15px]"
               />
               {errors.content && (
                 <p className="text-sm text-destructive mt-1">
