@@ -70,7 +70,9 @@ export const userService = {
     // Step 2: fetch actual users
     const { data: users, error: usersError } = await supabase
       .from("users")
-      .select("id, first_name, last_name, username, avatar_url")
+      .select(
+        "id, first_name, last_name, username, avatar_url, country, genotype"
+      )
       .in("id", followingIds);
 
     return { data: users, error: usersError };

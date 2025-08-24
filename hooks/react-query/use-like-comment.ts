@@ -37,6 +37,7 @@ export function useLikeComment() {
     onSuccess: () => {
       // invalidate queries where comments are fetched
       queryClient.invalidateQueries({ queryKey: ["comments"] });
+      queryClient.invalidateQueries({ queryKey: ["groupPosts"] });
     },
   });
 }
@@ -72,6 +73,7 @@ export function useUnlikeComment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comments"] });
+      queryClient.invalidateQueries({ queryKey: ["groupPosts"] });
     },
   });
 }

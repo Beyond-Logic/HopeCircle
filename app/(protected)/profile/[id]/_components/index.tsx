@@ -177,7 +177,7 @@ export function Profile() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6">
       {/* Profile Header */}
       <Card>
         <CardContent className="p-6">

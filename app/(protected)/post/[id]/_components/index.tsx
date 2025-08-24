@@ -3,6 +3,7 @@
 import { PostCard } from "@/components/post-card";
 import { Button } from "@/components/ui/button";
 import { useGetPostById } from "@/hooks/react-query/use-posts-service";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -42,7 +43,7 @@ export function Post() {
           : null,
         createdAt: postsData.created_at,
         updatedAt: postsData.updated_at,
-        likes: postsData.likes_count ?? (postsData.post_likes.length || 0),
+        likes: postsData.post_likes.length || 0,
         post_likes: postsData.post_likes || [],
         comments: postsData.comments?.[0]?.count || 0,
         postTags: postsData.post_tags || [],
@@ -54,7 +55,13 @@ export function Post() {
   // ---------------------------
   // Loading & error states
   // ---------------------------
-  if (isLoading) return null;
+  if (isLoading)
+    return (
+      <div className="flex justify-center py-6">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+
   if (isError || !postsData)
     return (
       <div className="text-center py-12">
@@ -67,6 +74,24 @@ export function Post() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      {/* Back Button */}
+      <div className="mb-2">
+        {post?.group ? (
+          <Link href={`/groups/${post.group.id}`}>
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Go to Group
+            </Button>
+          </Link>
+        ) : (
+          <Link href="/feed">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Feed
+            </Button>
+          </Link>
+        )}
+      </div>
       {post && (
         <PostCard
           key={post?.id}

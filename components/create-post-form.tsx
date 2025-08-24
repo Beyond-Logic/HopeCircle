@@ -20,8 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { ImageIcon, Send, User, X, Users, AtSign, Globe } from "lucide-react";
 import { postService } from "@/lib/supabase/service/post-service";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
-import { useUserFollowers } from "@/hooks/react-query/use-get-user-followers";
-import { authService } from "@/lib/supabase/service/auth-service";
+import { useUserFollowing } from "@/hooks/react-query/use-get-user-followers";
 
 interface CreatePostFormData {
   content: string;
@@ -69,7 +68,7 @@ CreatePostFormProps) {
     { id: "healthcare-pros", name: "Healthcare Professionals" },
   ];
 
-  const { data } = useUserFollowers(user?.user.id);
+  const { data } = useUserFollowing(user?.user.id);
 
   const followedUsers = data || [];
 
@@ -83,7 +82,6 @@ CreatePostFormProps) {
   } = useForm<CreatePostFormData>();
 
   const contentValue = watch("content", "");
-
 
   const handleContentChange = (value: string) => {
     setValue("content", value);
