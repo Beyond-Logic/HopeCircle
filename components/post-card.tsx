@@ -61,6 +61,8 @@ import { commentService } from "@/lib/supabase/service/comment-service";
 import ConfirmReportModal from "./ui/confirmation-report-post-modal";
 import { useSearchParams } from "next/navigation";
 import { authService } from "@/lib/supabase/service/auth-service";
+import { useUserGroups } from "@/hooks/react-query/use-get-user-groups";
+import { useUpdatePost } from "@/hooks/react-query/use-posts-service";
 
 interface Post {
   id: string;
@@ -96,6 +98,8 @@ interface PostCardProps {
   onDelete?: (postId: string) => void;
   isSinglePost?: boolean;
   profilePreview?: string;
+  groupId?: string;
+  isGroup?: boolean;
 }
 
 export function PostCard({
@@ -103,6 +107,8 @@ export function PostCard({
   onEdit,
   onDelete,
   isSinglePost,
+  groupId,
+  isGroup
 }: // profilePreview,
 PostCardProps) {
   const { data: user } = useCurrentUserProfile();
@@ -111,7 +117,6 @@ PostCardProps) {
 
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
 
-  console.log("profilepreview", profilePreview);
 
   useEffect(() => {
     authService
@@ -131,7 +136,7 @@ PostCardProps) {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
-    post.group?.id || "your-timeline"
+    groupId || post.group?.id || "your-timeline"
   );
 
   // Add these with your other state
@@ -383,39 +388,40 @@ PostCardProps) {
     }
   };
 
-  const handleEditPost = async () => {
-    setIsLoading(true);
-    try {
-      // keep remaining existing images in original order
-      const updatedImages = [...existingKeys];
 
-      // upload new images (max 1MB already enforced)
-      for (let i = 0; i < newImages.length; i++) {
-        const key = await postService.uploadPostImage(newImages[i], post.id, i);
-        updatedImages.push(key);
-      }
+  const { mutateAsync: updatePost, isPending: isPostUpdatePending } = useUpdatePost();
 
-      const updates = {
-        content: contentValue.trim(),
-        images: updatedImages,
-        group_id: selectedGroupId !== "your-timeline" ? selectedGroupId : null,
-        // tags later
-      };
+const handleEditPost = async () => {
+  setIsLoading(true);
+  try {
+    const updatedImages = [...existingKeys];
 
-      const { data, error } = await postService.updatePost(post.id, updates);
-      if (error) throw error;
-
-      onEdit?.(post.id, data); // ensure parent updates `post.images`
-      setIsEditing(false);
-      setNewImages([]);
-      setRemovedImages([]);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to update post. Please try again.");
-    } finally {
-      setIsLoading(false);
+    for (let i = 0; i < newImages.length; i++) {
+      const key = await postService.uploadPostImage(newImages[i], post.id, i);
+      updatedImages.push(key);
     }
-  };
+
+    const updates = {
+      content: contentValue.trim(),
+      images: updatedImages,
+      group_id: selectedGroupId !== "your-timeline" ? selectedGroupId : null,
+    };
+
+    const { data, error } = await updatePost({ postId: post.id, updates });
+    if (error) throw error;
+
+    onEdit?.(post.id, data);
+    setIsEditing(false);
+    setNewImages([]);
+    setRemovedImages([]);
+  } catch (err) {
+    console.error(err);
+    // error toast already handled in hook
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const cancelEdit = () => {
     setContent(post.content);
@@ -505,12 +511,14 @@ PostCardProps) {
     setEditCommentText("");
   };
 
-  const userGroups = [
-    { id: "nigeria-warriors", name: "Nigeria Warriors" },
-    { id: "caregivers-support", name: "Caregivers Support" },
-    { id: "young-adults", name: "Young Adults with SCD" },
-    { id: "healthcare-pros", name: "Healthcare Professionals" },
-  ];
+  const { data: UserGroups } = useUserGroups(currentUserId);
+
+  const userGroups = UserGroups?.map((item) => ({
+    id: item.group.id,
+    name: item.group.name,
+  }));
+  
+  console.log("userGroups", userGroups);
 
   const { data: followed } = useUserFollowers(user?.user.id);
 
@@ -613,8 +621,8 @@ PostCardProps) {
                     <span>•</span>
                   </div>
                   <span>
-                    {post.updatedAt &&
-                      formatDistanceToNow(post.updatedAt, { addSuffix: true })}
+                    {post.createdAt &&
+                      formatDistanceToNow(post.createdAt, { addSuffix: true })}
                   </span>
                 </div>
                 {post.group && (
@@ -692,7 +700,7 @@ PostCardProps) {
           <div className="mb-4">
             {isEditing ? (
               <div className="space-y-3">
-                {!post.group?.id && userGroups.length > 1 && (
+                {!isGroup && userGroups && userGroups.length >= 1 && (
                   <div className="space-y-2">
                     {/* <label className="text-sm font-medium text-muted-foreground">
                                 Post to:
@@ -804,6 +812,7 @@ PostCardProps) {
                       multiple
                       accept="image/*"
                       className="hidden"
+                      disabled={existingKeys.length + newImages.length >= 6}
                       onChange={(e) => {
                         const files = Array.from(e.target.files || []);
                         const valid = files.filter(
@@ -865,10 +874,10 @@ PostCardProps) {
                   <Button
                     size="sm"
                     onClick={handleEditPost}
-                    disabled={isLoading}
+                    disabled={isPostUpdatePending}
                   >
                     <Check className="w-4 h-4" />
-                    {isLoading ? "Saving..." : <>Save</>}
+                    {isPostUpdatePending ? "Saving..." : <>Save</>}
                   </Button>
                   <Button size="sm" variant="outline" onClick={cancelEdit}>
                     Cancel
@@ -972,7 +981,7 @@ PostCardProps) {
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     placeholder="Write a comment..."
-                    className="min-h-[60px] resize-none"
+                    className="min-h-[60px] resize-none text-[15px]"
                   />
                   <div className="flex justify-end mt-2">
                     <Button
@@ -1112,7 +1121,7 @@ PostCardProps) {
                                   value={replyText}
                                   onChange={(e) => setReplyText(e.target.value)}
                                   placeholder="Write a reply..."
-                                  className="min-h-[50px] resize-none"
+                                  className="min-h-[50px] resize-none text-[15px]"
                                 />
                                 <div className="flex gap-2 mt-2">
                                   <Button

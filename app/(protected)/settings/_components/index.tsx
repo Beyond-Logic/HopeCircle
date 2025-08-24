@@ -25,6 +25,8 @@ import { CountrySelect } from "@/components/ui/country-select";
 import { authService } from "@/lib/supabase/service/auth-service";
 import { toast } from "sonner";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
+import { useUpsertUserProfile } from "@/hooks/react-query/use-upsert-user-profie";
+import { useDeleteAvatarMutation } from "@/hooks/react-query/use-delete-user-avatar";
 
 interface ProfileFormData {
   first_name: string;
@@ -98,6 +100,8 @@ export function Settings() {
 
   const passwordForm = useForm<PasswordFormData>();
 
+  const { mutateAsync: upsertUserProfile } = useUpsertUserProfile();
+
   const onProfileSubmit = async (data: ProfileFormData) => {
     setIsLoading(true);
     try {
@@ -105,6 +109,7 @@ export function Settings() {
 
       let avatarUrl = data.avatar_url;
 
+      // ✅ Handle avatar upload
       if (selectedFile) {
         const fileKey = await authService.uploadAvatar(selectedFile, user.id);
         const signedUrl = await authService.getAvatarUrl(fileKey);
@@ -113,8 +118,8 @@ export function Settings() {
         setSelectedFile(null); // clear after upload
       }
 
-      // Upsert user profile with the uploaded avatar URL
-      await authService.upsertUserProfile({
+      // ✅ Use React Query mutation instead of direct call
+      await upsertUserProfile({
         ...data,
         id: user.id,
         bio: data.bio ?? undefined,
@@ -126,9 +131,10 @@ export function Settings() {
       console.log("Profile update:", { ...data, avatar_url: avatarUrl });
       toast.success("Profile updated successfully!");
       refetch();
-      // Reset form dirty state and avatar changed flag
+
+      // ✅ Reset form dirty state and avatar changed flag
       profileForm.reset({ ...data, avatar_url: avatarUrl });
-      setAvatarChanged(false); // ✅ avatar change has been saved
+      setAvatarChanged(false);
     } catch (error) {
       console.error("Profile update error:", error);
       toast.error((error as Error).message || "Failed to update profile");
@@ -195,31 +201,27 @@ export function Settings() {
     profileForm.setValue("avatar_url", null);
   };
 
-  const handleDeleteAvatar = async () => {
+  const deleteAvatarMutation = useDeleteAvatarMutation();
+
+  const handleDeleteAvatar = () => {
     if (!user?.id) return;
-
-    try {
-      setIsLoading(true);
-
-      if (!profile?.avatar_url) throw new Error("No avatar to delete");
-
-      const { error } = await authService.deleteAvatar(
-        profile.avatar_url,
-        user.id
-      );
-
-      if (error) throw error;
-
-      setProfilePreview(null);
-      profileForm.setValue("avatar_url", null);
-      refetch();
-      toast.success("Avatar deleted successfully!");
-    } catch (error) {
-      console.error(error);
-      toast.error((error as Error).message || "Failed to delete avatar");
-    } finally {
-      setIsLoading(false);
+    if (!profile?.avatar_url) {
+      toast.error("No avatar to delete");
+      return;
     }
+
+    deleteAvatarMutation.mutate(
+      {
+        fileName: profile.avatar_url,
+        userId: user.id,
+      },
+      {
+        onSuccess: () => {
+          setProfilePreview(null);
+          profileForm.setValue("avatar_url", null);
+        },
+      }
+    );
   };
 
   if (loading) return null;

@@ -8,136 +8,83 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Users, MapPin, Heart, Plus } from "lucide-react";
-import { CreateGroupModal } from "./create-group-modal";
+import { Search, Users, MapPin, Heart, Plus, Loader2 } from "lucide-react";
+import { useGroups } from "@/hooks/react-query/use-groups";
+import { groupService } from "@/lib/supabase/service/groups-service";
+import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
 
-// Mock data for groups
-const initialMockGroups = [
-  {
-    id: "nigeria-warriors",
-    name: "Nigeria Warriors",
-    description:
-      "Connect with fellow sickle cell warriors across Nigeria. Share experiences, support, and local resources.",
-    type: "country" as const,
-    memberCount: 1247,
-    isJoined: true,
-    recentActivity: "2 hours ago",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "caregivers-support",
-    name: "Caregivers Support",
-    description:
-      "A safe space for parents, family members, and friends supporting loved ones with sickle cell disease.",
-    type: "theme" as const,
-    memberCount: 892,
-    isJoined: false,
-    recentActivity: "4 hours ago",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "usa-community",
-    name: "USA Community",
-    description:
-      "Sickle cell warriors and supporters across the United States sharing resources and experiences.",
-    type: "country" as const,
-    memberCount: 2156,
-    isJoined: true,
-    recentActivity: "1 hour ago",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "pain-management",
-    name: "Pain Management Tips",
-    description:
-      "Share and discover effective pain management strategies, techniques, and experiences.",
-    type: "theme" as const,
-    memberCount: 1834,
-    isJoined: false,
-    recentActivity: "30 minutes ago",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "uk-support",
-    name: "UK Support Network",
-    description:
-      "United Kingdom sickle cell community for sharing NHS experiences and local support.",
-    type: "country" as const,
-    memberCount: 567,
-    isJoined: false,
-    recentActivity: "6 hours ago",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "young-warriors",
-    name: "Young Warriors (18-30)",
-    description:
-      "A space for young adults navigating sickle cell disease, career, relationships, and independence.",
-    type: "theme" as const,
-    memberCount: 743,
-    isJoined: true,
-    recentActivity: "3 hours ago",
-    image: "/placeholder.svg?height=200&width=300",
-  },
-];
-
-export  function Groups() {
+export function Groups() {
+  const { data: user } = useCurrentUserProfile();
   const [searchQuery, setSearchQuery] = useState("");
-  const [groups, setGroups] = useState(initialMockGroups);
-  const [activeTab, setActiveTab] = useState("all");
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<
+    "all" | "joined" | "country" | "theme"
+  >("all");
 
-  const handleJoinGroup = (groupId: string) => {
-    setGroups(
-      groups.map((group) =>
-        group.id === groupId
-          ? {
-              ...group,
-              isJoined: !group.isJoined,
-              memberCount: group.isJoined
-                ? group.memberCount - 1
-                : group.memberCount + 1,
-            }
-          : group
-      )
-    );
-  };
+  const {
+    data: groupsData = [],
+    isLoading,
+    error,
+    refetch,
+  } = useGroups(
+    activeTab === "country" || activeTab === "theme" ? activeTab : undefined
+  );
 
-  const handleCreateGroup = (groupData: {
+  // Cast to include group_members property
+  const groups = groupsData as Array<{
+    id: string;
     name: string;
     description: string;
     type: "country" | "theme";
-  }) => {
-    const newGroup = {
-      id: groupData.name
-        .toLowerCase()
-        .replace(/\s+/g, "-")
-        .replace(/[^a-z0-9-]/g, ""),
-      name: groupData.name,
-      description: groupData.description,
-      type: groupData.type,
-      memberCount: 1, // Creator is the first member
-      isJoined: true, // Creator automatically joins
-      recentActivity: "Just now",
-      image: `/placeholder.svg?height=200&width=300&query=${encodeURIComponent(
-        groupData.name + " community"
-      )}`,
-    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    group_members?: Array<any>;
+    image_url?: string;
+    creator_id: string;
+    created_at: string;
+    updated_at: string;
+  }>;
 
-    setGroups([newGroup, ...groups]);
+  const [loading, setIsLoading] = useState(false);
+
+  const handleJoinGroup = async (groupId: string) => {
+    if (!user?.user.id) return;
+
+    const group = groups.find((g) => g.id === groupId);
+    const isMember =
+      group?.group_members?.some(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (member: any) => member.user?.id === user.user.id
+      ) || false;
+    setIsLoading(true);
+    try {
+      if (!isMember) {
+        await groupService.joinGroup(groupId, user.user.id);
+      } else {
+        await groupService.leaveGroup(groupId, user.user.id);
+      }
+      refetch();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const filteredGroups = groups.filter((group) => {
     const matchesSearch =
       group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       group.description.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const isJoined = (group.group_members?.length || 0) > 0;
     const matchesTab =
       activeTab === "all" ||
-      (activeTab === "joined" && group.isJoined) ||
+      (activeTab === "joined" && isJoined) ||
       (activeTab === "country" && group.type === "country") ||
       (activeTab === "theme" && group.type === "theme");
+
     return matchesSearch && matchesTab;
   });
+
+  if (error) return null;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -149,64 +96,74 @@ export  function Groups() {
             Connect with communities that matter to you
           </p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Group
-        </Button>
+        <Link href="/groups/create">
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Group
+          </Button>
+        </Link>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-        <Input
-          placeholder="Search groups..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      {isLoading ? (
+        <div className="flex justify-center py-6">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              placeholder="Search groups..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="all">All Groups</TabsTrigger>
-          <TabsTrigger value="joined">Joined</TabsTrigger>
-          <TabsTrigger value="country">By Country</TabsTrigger>
-          <TabsTrigger value="theme">By Theme</TabsTrigger>
-        </TabsList>
+          {/* Tabs */}
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) =>
+              setActiveTab(value as "all" | "joined" | "country" | "theme")
+            }
+          >
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="all">All Groups</TabsTrigger>
+              <TabsTrigger value="joined">Joined</TabsTrigger>
+              <TabsTrigger value="country">By Country</TabsTrigger>
+              <TabsTrigger value="theme">By Theme</TabsTrigger>
+            </TabsList>
 
-        <TabsContent value="all" className="mt-6">
-          <GroupGrid groups={filteredGroups} onJoinGroup={handleJoinGroup} />
-        </TabsContent>
-
-        <TabsContent value="joined" className="mt-6">
-          <GroupGrid groups={filteredGroups} onJoinGroup={handleJoinGroup} />
-        </TabsContent>
-
-        <TabsContent value="country" className="mt-6">
-          <GroupGrid groups={filteredGroups} onJoinGroup={handleJoinGroup} />
-        </TabsContent>
-
-        <TabsContent value="theme" className="mt-6">
-          <GroupGrid groups={filteredGroups} onJoinGroup={handleJoinGroup} />
-        </TabsContent>
-      </Tabs>
-
-      <CreateGroupModal
-        open={isCreateModalOpen}
-        onOpenChange={setIsCreateModalOpen}
-        onCreateGroup={handleCreateGroup}
-      />
+            <TabsContent value={activeTab} className="mt-6">
+              <GroupGrid
+                groups={filteredGroups}
+                onJoinGroup={handleJoinGroup}
+                loading={loading}
+              />
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
     </div>
   );
 }
 
 interface GroupGridProps {
-  groups: typeof initialMockGroups;
+  groups: Array<{
+    id: string;
+    name: string;
+    description: string;
+    type: "country" | "theme";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    group_members?: Array<any>;
+    image_url?: string;
+  }>;
   onJoinGroup: (groupId: string) => void;
+  loading: boolean
 }
 
-function GroupGrid({ groups, onJoinGroup }: GroupGridProps) {
+function GroupGrid({ groups, onJoinGroup, loading }: GroupGridProps) {
   if (groups.length === 0) {
     return (
       <div className="text-center py-12">
@@ -221,63 +178,77 @@ function GroupGrid({ groups, onJoinGroup }: GroupGridProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {groups.map((group) => (
-        <Card
-          key={group.id}
-          className="overflow-hidden hover:shadow-lg transition-shadow"
-        >
-          <div className="aspect-video relative">
-            <img
-              src={group.image || "/placeholder.svg"}
-              alt={group.name}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute top-3 right-3">
-              <Badge
-                variant={group.type === "country" ? "default" : "secondary"}
-              >
-                {group.type === "country" ? (
-                  <MapPin className="w-3 h-3 mr-1" />
-                ) : (
-                  <Heart className="w-3 h-3 mr-1" />
-                )}
-                {group.type === "country" ? "Country" : "Theme"}
-              </Badge>
-            </div>
-          </div>
-
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">{group.name}</CardTitle>
-            <p className="text-sm text-muted-foreground line-clamp-2">
-              {group.description}
-            </p>
-          </CardHeader>
-
-          <CardContent className="pt-0">
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
-              <div className="flex items-center gap-1">
-                <Users className="w-4 h-4" />
-                <span>{group.memberCount.toLocaleString()} members</span>
+      {groups.map((group) => {
+        const isJoined = (group.group_members?.length || 0) > 0;
+        return (
+          <Card
+            key={group.id}
+            className="overflow-hidden hover:shadow-lg transition-shadow !pt-0"
+          >
+            <div className="aspect-video relative">
+              <img
+                src={group.image_url || "/placeholder.svg"}
+                alt={group.name}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute top-3 right-3">
+                <Badge
+                  variant={group.type === "country" ? "default" : "secondary"}
+                >
+                  {group.type === "country" ? (
+                    <MapPin className="w-3 h-3 mr-1" />
+                  ) : (
+                    <Heart className="w-3 h-3 mr-1" />
+                  )}
+                  {group.type === "country" ? "Country" : "Theme"}
+                </Badge>
               </div>
-              <span>Active {group.recentActivity}</span>
             </div>
 
-            <div className="flex gap-2">
-              <Button
-                variant={group.isJoined ? "outline" : "default"}
-                size="sm"
-                className="flex-1"
-                onClick={() => onJoinGroup(group.id)}
-              >
-                {group.isJoined ? "Leave" : "Join"}
-              </Button>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/groups/${group.id}`}>View</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">{group.name}</CardTitle>
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {group.description}
+              </p>
+            </CardHeader>
+
+            <CardContent className="pt-0">
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
+                <div className="flex items-center gap-1">
+                  <Users className="w-4 h-4" />
+                  <span>
+                    {(group.group_members?.length || 0).toLocaleString()}{" "}
+                    members
+                  </span>
+                </div>
+                <span>
+                  Active {/* TODO: calculate recent activity if needed */}
+                </span>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant={isJoined ? "outline" : "default"}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => onJoinGroup(group.id)}
+                >
+                  {isJoined
+                    ? loading
+                      ? "Leaving"
+                      : "Leave"
+                    : loading
+                    ? "Joining"
+                    : "Join"}
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/groups/${group.id}`}>View</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }

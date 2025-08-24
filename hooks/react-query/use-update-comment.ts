@@ -11,6 +11,7 @@ export function useUpdateComment() {
     onSuccess: () => {
       // ✅ Optimistically update cache so UI reflects immediately
       queryClient.invalidateQueries({ queryKey: ["comments"] });
+      queryClient.invalidateQueries({ queryKey: ["post"] });
     },
   });
 }

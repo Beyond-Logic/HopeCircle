@@ -42,6 +42,7 @@ export function useAddComment() {
       // Refresh comments for that post
       queryClient.invalidateQueries({ queryKey: ["comments"] });
       queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["post"] });
     },
   });
 }

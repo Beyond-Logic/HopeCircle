@@ -1,5 +1,6 @@
 import { postService } from "@/lib/supabase/service/post-service";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 interface UseGetPostsOptions {
   page?: number;
@@ -31,6 +32,8 @@ export function useGetPosts({
         );
       return data;
     },
+    // placeholderData: (previousData) => previousData, // good for pagination
+    refetchOnWindowFocus: false,
     staleTime: 1000 * 60 * 1,
     retry: 1,
   });
@@ -52,5 +55,34 @@ export function useGetPostById(postId: string) {
     enabled: !!postId, // only run if postId is provided
     staleTime: 1000 * 60 * 1,
     retry: 1,
+  });
+}
+
+export function useUpdatePost() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mutationFn: ({ postId, updates }: { postId: string; updates: any }) =>
+      postService.updatePost(postId, updates),
+
+    onSuccess: (res, variables) => {
+      if (res.error) {
+        toast.error("Failed to update post. Please try again.");
+        return;
+      }
+
+      // ✅ Invalidate post-related queries
+      queryClient.invalidateQueries({ queryKey: ["groupPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["comments"] });
+
+      toast.success("Post updated successfully!");
+    },
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (error: any) => {
+      console.error(error);
+      toast.error("Failed to update post. Please try again.");
+    },
   });
 }

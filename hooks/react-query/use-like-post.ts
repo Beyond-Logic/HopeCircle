@@ -36,6 +36,8 @@ export function useLikePost() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["post"] });
+      queryClient.invalidateQueries({ queryKey: ["groupPosts"] });
     },
   });
 }
@@ -71,6 +73,8 @@ export function useUnlikePost() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["post"] });
+      queryClient.invalidateQueries({ queryKey: ["groupPosts"] });
     },
   });
 }

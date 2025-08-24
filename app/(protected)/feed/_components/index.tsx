@@ -75,7 +75,7 @@ export function Feed() {
         group: post.group ? { id: post.group.id, name: post.group.name } : null,
         createdAt: post.created_at,
         updatedAt: post.updated_at,
-        likes: post.likes_count ?? (post.post_likes.length || 0),
+        likes: post.post_likes.length || 0,
         post_likes: post.post_likes || [],
         comments: post.comments?.[0]?.count || 0,
         postTags: post.post_tags || [],
@@ -196,17 +196,14 @@ export function Feed() {
 
         {["recent", "my-groups", "following", "popular"].map((tab) => (
           <TabsContent key={tab} value={tab} className="space-y-4 mt-6">
-            {isLoading ? (
-              <div className="flex justify-center py-6">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : posts && posts.length > 0 ? (
+           { posts && posts.length > 0 ? (
               posts.map((post) => (
                 <PostCard
                   key={post.id}
                   post={post}
                   onEdit={refetch as never}
                   onDelete={refetch as never}
+                  isGroup={false}
                 />
               ))
             ) : (
