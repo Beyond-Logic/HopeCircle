@@ -63,6 +63,7 @@ import { useSearchParams } from "next/navigation";
 import { authService } from "@/lib/supabase/service/auth-service";
 import { useUserGroups } from "@/hooks/react-query/use-get-user-groups";
 import { useUpdatePost } from "@/hooks/react-query/use-posts-service";
+import { useIsUserInGroup } from "@/hooks/react-query/use-is-user-in-group";
 
 interface Post {
   id: string;
@@ -108,7 +109,7 @@ export function PostCard({
   onDelete,
   isSinglePost,
   groupId,
-  isGroup
+  isGroup,
 }: // profilePreview,
 PostCardProps) {
   const { data: user } = useCurrentUserProfile();
@@ -116,7 +117,6 @@ PostCardProps) {
   const searchParams = useSearchParams();
 
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
-
 
   useEffect(() => {
     authService
@@ -148,7 +148,6 @@ PostCardProps) {
   >([]);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [tagQuery, setTagQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const { mutate: addComment, isPending } = useAddComment();
 
   const [open, setOpen] = useState(false);
@@ -160,10 +159,14 @@ PostCardProps) {
   const [open3, setOpen3] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const { data: isMember } = useIsUserInGroup(
+    post?.group?.id as string,
+    user?.user.id as string
+  );
+
   const {
     data: commentsData,
-    error,
-    isLoading: isCommentLoading,
+
     refetch: refetchComments,
   } = useComments(post.id);
 
@@ -388,40 +391,37 @@ PostCardProps) {
     }
   };
 
+  const { mutateAsync: updatePost, isPending: isPostUpdatePending } =
+    useUpdatePost();
 
-  const { mutateAsync: updatePost, isPending: isPostUpdatePending } = useUpdatePost();
+  const handleEditPost = async () => {
+    try {
+      const updatedImages = [...existingKeys];
 
-const handleEditPost = async () => {
-  setIsLoading(true);
-  try {
-    const updatedImages = [...existingKeys];
+      for (let i = 0; i < newImages.length; i++) {
+        const key = await postService.uploadPostImage(newImages[i], post.id, i);
+        updatedImages.push(key);
+      }
 
-    for (let i = 0; i < newImages.length; i++) {
-      const key = await postService.uploadPostImage(newImages[i], post.id, i);
-      updatedImages.push(key);
+      const updates = {
+        content: contentValue.trim(),
+        images: updatedImages,
+        group_id: selectedGroupId !== "your-timeline" ? selectedGroupId : null,
+      };
+
+      const { data, error } = await updatePost({ postId: post.id, updates });
+      if (error) throw error;
+
+      onEdit?.(post.id, data);
+      setIsEditing(false);
+      setNewImages([]);
+      setRemovedImages([]);
+    } catch (err) {
+      console.error(err);
+      // error toast already handled in hook
+    } finally {
     }
-
-    const updates = {
-      content: contentValue.trim(),
-      images: updatedImages,
-      group_id: selectedGroupId !== "your-timeline" ? selectedGroupId : null,
-    };
-
-    const { data, error } = await updatePost({ postId: post.id, updates });
-    if (error) throw error;
-
-    onEdit?.(post.id, data);
-    setIsEditing(false);
-    setNewImages([]);
-    setRemovedImages([]);
-  } catch (err) {
-    console.error(err);
-    // error toast already handled in hook
-  } finally {
-    setIsLoading(false);
-  }
-};
-
+  };
 
   const cancelEdit = () => {
     setContent(post.content);
@@ -517,8 +517,7 @@ const handleEditPost = async () => {
     id: item.group.id,
     name: item.group.name,
   }));
-  
-  console.log("userGroups", userGroups);
+
 
   const { data: followed } = useUserFollowers(user?.user.id);
 
@@ -650,7 +649,15 @@ const handleEditPost = async () => {
                 {isSinglePost ? (
                   <></>
                 ) : (
-                  <Link href={`/post/${post.id}`}>
+                  <Link
+                    href={
+                      post.group?.id || isGroup
+                        ? `/groups/${post?.group?.id || groupId}/post/${
+                            post?.id
+                          }`
+                        : `/post/${post.id}`
+                    }
+                  >
                     <DropdownMenuItem className="cursor-pointer">
                       <Eye className="w-4 h-4 mr-2" />
                       View Post
@@ -909,23 +916,65 @@ const handleEditPost = async () => {
           {/* Post Actions */}
           <div className="flex items-center justify-between pt-3 border-t">
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleLike()}
-                className={`hover:bg-transparent ${
-                  isPostLiked
-                    ? "text-accent hover:text-accent"
-                    : "hover:text-accent"
-                }`}
-              >
-                <Heart
-                  className={`w-4 h-4 mr-2 ${
-                    isPostLiked ? "fill-current" : ""
+              {post?.group?.id && isMember ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleLike()}
+                  className={`hover:bg-transparent ${
+                    isPostLiked
+                      ? "text-accent hover:text-accent"
+                      : "hover:text-accent"
                   }`}
-                />
-                {post.likes}
-              </Button>
+                >
+                  <Heart
+                    className={`w-4 h-4 mr-2 ${
+                      isPostLiked ? "fill-current" : ""
+                    }`}
+                  />
+                  {post.likes}
+                </Button>
+              ) : !post.group?.id ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleLike()}
+                  className={`hover:bg-transparent ${
+                    isPostLiked
+                      ? "text-accent hover:text-accent"
+                      : "hover:text-accent"
+                  }`}
+                >
+                  <Heart
+                    className={`w-4 h-4 mr-2 ${
+                      isPostLiked ? "fill-current" : ""
+                    }`}
+                  />
+                  {post.likes}
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    toast(
+                      "You need to be a group member to react to this post"
+                    )
+                  }
+                  className={`hover:bg-transparent ${
+                    isPostLiked
+                      ? "text-accent hover:text-accent"
+                      : "hover:text-accent"
+                  }`}
+                >
+                  <Heart
+                    className={`w-4 h-4 mr-2 ${
+                      isPostLiked ? "fill-current" : ""
+                    }`}
+                  />
+                  {post.likes}
+                </Button>
+              )}
               {isSinglePost ? (
                 <Button
                   className="!bg-transparent hover:text-accent"
@@ -937,7 +986,16 @@ const handleEditPost = async () => {
                   {post.comments}
                 </Button>
               ) : (
-                <Link href={`/post/${post.id}?showComments=true#showComments`}>
+                <Link
+                  href={
+                    post.group?.id || isGroup
+                      ? `/groups/${post?.group?.id || groupId}/post/${
+                          post?.id
+                        }??showComments=true#showComments`
+                      : `/post/${post.id}?showComments=true#showComments`
+                  }
+                  // href={`/post/${post.id}?showComments=true#showComments`}
+                >
                   <Button
                     className="!bg-transparent hover:text-accent"
                     variant="ghost"
@@ -1421,7 +1479,7 @@ const handleEditPost = async () => {
 
       {/* Image Gallery Modal */}
       {showAllImages && imageUrls && imageUrls.length > 0 && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black/90 h-full z-50 flex items-center justify-center">
           <div className="relative w-full h-full flex items-center justify-center p-4">
             {/* Close Button */}
             <Button
@@ -1451,11 +1509,11 @@ const handleEditPost = async () => {
             )}
 
             {/* Current Image */}
-            <div className="max-w-[90vw] max-h-[90vh] flex items-center justify-center">
+            <div className="bg-black bg-opacity-90 flex items-center justify-center">
               <img
                 src={imageUrls[currentImageIndex] || "/placeholder.svg"}
                 alt={`Post image ${currentImageIndex + 1}`}
-                className="max-w-full max-h-full object-contain rounded-lg"
+                className="max-w-[100vw] max-h-[90vh] object-contain rounded-lg"
               />
             </div>
 

@@ -22,7 +22,7 @@ export function GroupDetail() {
   const { data: user } = useCurrentUserProfile();
 
   const params = useParams();
-  const groupId = params.id as string;
+  const groupId = params.slug as string;
 
   const { data: group, isLoading, error, refetch } = useGetGroupById(groupId);
   const { data: isMember, refetch: memberRefetch } = useIsUserInGroup(
@@ -31,6 +31,7 @@ export function GroupDetail() {
   );
 
   const [page, setPage] = useState(0);
+  const [loadingState, setLoadingState] = useState(false);
 
   const {
     data: postsData,
@@ -44,6 +45,13 @@ export function GroupDetail() {
   useEffect(() => {
     setDefaultTab(isMember ? "posts" : "about");
   }, [isMember]);
+
+  useEffect(() => {
+    if (page === 0) {
+      // only show loader on first page
+      setLoadingState(isLoading);
+    }
+  }, [isLoading, page]);
 
   // Merge paginated posts
   useEffect(() => {
@@ -82,6 +90,10 @@ export function GroupDetail() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setIsLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Assign a background color based on group type
+  const bgColor = group?.type === "country" ? "bg-blue-500" : "bg-pink-500";
 
   if (isLoading) {
     return (
@@ -156,12 +168,24 @@ export function GroupDetail() {
 
       {/* Group Header */}
       <Card className="!pt-0">
-        <div className="aspect-[12/1] relative">
-          <img
-            src={group.image_url || "/placeholder.svg"}
-            alt={group.name}
-            className="w-full h-[200px] object-cover rounded-t-lg"
-          />
+        <div className="aspect-[12/1] relative flex items-center justify-center">
+          {group.image_url && !imageError ? (
+            <img
+              src={group.image_url}
+              alt={group.name}
+              className="w-full h-[200px] object-cover rounded-t-lg"
+              onError={() => setImageError(true)} // mark as error if it fails
+            />
+          ) : (
+            <div
+              className={`w-full h-[200px] ${bgColor} flex items-center justify-center rounded-t-lg`}
+            >
+              <span className="text-white font-semibold text-2xl">
+                {/* {group.name.charAt(0)} */}
+              </span>
+            </div>
+          )}
+
           <div className="absolute top-4 right-4">
             <Badge variant={group.type === "country" ? "default" : "secondary"}>
               {group.type === "country" ? (
@@ -205,10 +229,10 @@ export function GroupDetail() {
                   ? "Joining Group"
                   : "Join Group"}
               </Button>
-              <Button variant="outline" size="icon">
+              {/* <Button variant="outline" size="icon">
                 <Share className="w-4 h-4" />
-              </Button>
-              {isMember && (
+              </Button> */}
+              {group.created_by === user?.user.id && (
                 <Button variant="outline" size="icon">
                   <Settings className="w-4 h-4" />
                 </Button>
@@ -236,7 +260,7 @@ export function GroupDetail() {
           )}
           {isMember && (
             <div className="space-y-4">
-              {posts && posts.length > 0 ? (
+              {!loadingState && posts && posts.length > 0 ? (
                 posts.map((post) => (
                   <PostCard
                     key={post.id}
@@ -246,10 +270,18 @@ export function GroupDetail() {
                     isGroup={true}
                   />
                 ))
+              ) : loadingState ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="animate-spin" />
+                </div>
               ) : (
-                <Card className="p-8 text-center">
-                  <p className="text-muted-foreground">No posts to show yet.</p>
-                </Card>
+                !posts && (
+                  <Card className="p-8 text-center">
+                    <p className="text-muted-foreground">
+                      No posts to show yet.
+                    </p>
+                  </Card>
+                )
               )}
 
               {posts && posts.length > 0 && (

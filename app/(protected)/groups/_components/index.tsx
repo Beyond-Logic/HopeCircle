@@ -1,14 +1,24 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Users, MapPin, Heart, Plus, Loader2 } from "lucide-react";
+import {
+  Search,
+  Users,
+  MapPin,
+  Heart,
+  Plus,
+  Loader2,
+  Eye,
+  X,
+  LogOut,
+} from "lucide-react";
 import { useGroups } from "@/hooks/react-query/use-groups";
 import { groupService } from "@/lib/supabase/service/groups-service";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
@@ -20,17 +30,35 @@ export function Groups() {
     "all" | "joined" | "country" | "theme"
   >("all");
 
+  const [page, setPage] = useState(0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [allGroups, setAllGroups] = useState<any[]>([]); // ✅ store merged groups
+
+  const active =
+    activeTab === "country" || activeTab === "theme" ? activeTab : undefined;
+
   const {
-    data: groupsData = [],
+    data: groupsData,
     isLoading,
     error,
     refetch,
-  } = useGroups(
-    activeTab === "country" || activeTab === "theme" ? activeTab : undefined
-  );
+  } = useGroups(page, 10, active);
 
-  // Cast to include group_members property
-  const groups = groupsData as Array<{
+  // ✅ Merge groups whenever new data comes in
+  useEffect(() => {
+    if (page === 0) {
+     if(groupsData){
+       setAllGroups(groupsData); // reset when starting fresh
+     }
+    } else {
+     if(groupsData){
+       setAllGroups((prev) => [...prev, ...groupsData]); // append next page
+     }
+    }
+  }, [groupsData, page]);
+
+  // Cast with merged groups
+  const groups = allGroups as Array<{
     id: string;
     name: string;
     description: string;
@@ -43,7 +71,8 @@ export function Groups() {
     updated_at: string;
   }>;
 
-  const [loading, setIsLoading] = useState(false);
+  const [loadingGroupId, setLoadingGroupId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleJoinGroup = async (groupId: string) => {
     if (!user?.user.id) return;
@@ -54,7 +83,9 @@ export function Groups() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (member: any) => member.user?.id === user.user.id
       ) || false;
-    setIsLoading(true);
+
+    setLoadingGroupId(groupId);
+
     try {
       if (!isMember) {
         await groupService.joinGroup(groupId, user.user.id);
@@ -65,7 +96,7 @@ export function Groups() {
     } catch (err) {
       console.error(err);
     } finally {
-      setIsLoading(false);
+      setLoadingGroupId(null);
     }
   };
 
@@ -83,6 +114,16 @@ export function Groups() {
 
     return matchesSearch && matchesTab;
   });
+
+  useEffect(() => {
+    if (page === 0) {
+      setLoading(isLoading);
+    }
+  }, [isLoading, page]);
+
+  const handleLoadMore = () => {
+    setPage((prev) => prev + 1);
+  };
 
   if (error) return null;
 
@@ -104,7 +145,7 @@ export function Groups() {
         </Link>
       </div>
 
-      {isLoading ? (
+      {loading ? (
         <div className="flex justify-center py-6">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
@@ -139,10 +180,20 @@ export function Groups() {
               <GroupGrid
                 groups={filteredGroups}
                 onJoinGroup={handleJoinGroup}
-                loading={loading}
+                loadingGroupId={loadingGroupId as string}
+                userId={user?.user.id as string}
+                isLoading={isLoading}
               />
             </TabsContent>
           </Tabs>
+
+          {groups && groups.length > 10 && (
+            <div className="text-center py-8">
+              <Button variant="outline" onClick={handleLoadMore}>
+                Load More Groups
+              </Button>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -160,11 +211,19 @@ interface GroupGridProps {
     image_url?: string;
   }>;
   onJoinGroup: (groupId: string) => void;
-  loading: boolean
+  loadingGroupId: string;
+  userId: string;
+  isLoading: boolean
 }
 
-function GroupGrid({ groups, onJoinGroup, loading }: GroupGridProps) {
-  if (groups.length === 0) {
+function GroupGrid({
+  groups,
+  onJoinGroup,
+  loadingGroupId,
+  userId,
+  isLoading
+}: GroupGridProps) {
+  if (groups.length === 0 && !isLoading) {
     return (
       <div className="text-center py-12">
         <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -179,18 +238,37 @@ function GroupGrid({ groups, onJoinGroup, loading }: GroupGridProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {groups.map((group) => {
-        const isJoined = (group.group_members?.length || 0) > 0;
+        const isJoined = group.group_members?.some(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (member: any) => member.user?.id === userId
+        );
+
+        // Assign a background color based on group type
+        const bgColor =
+          group.type === "country" ? "bg-blue-500" : "bg-pink-500"; // you can add more types/colors
+
         return (
           <Card
             key={group.id}
             className="overflow-hidden hover:shadow-lg transition-shadow !pt-0"
           >
-            <div className="aspect-video relative">
-              <img
-                src={group.image_url || "/placeholder.svg"}
-                alt={group.name}
-                className="w-full h-full object-cover"
-              />
+            <div className="aspect-video h-[200px] relative flex items-center justify-center">
+              {group.image_url ? (
+                <img
+                  src={group.image_url}
+                  alt={group.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div
+                  className={`w-full h-[200px] l ${bgColor} flex items-center justify-center`}
+                >
+                  <span className="text-white font-semibold text-lg">
+                    {/* {group.name.charAt(0)} */}
+                  </span>
+                </div>
+              )}
+
               <div className="absolute top-3 right-3">
                 <Badge
                   variant={group.type === "country" ? "default" : "secondary"}
@@ -221,29 +299,59 @@ function GroupGrid({ groups, onJoinGroup, loading }: GroupGridProps) {
                     members
                   </span>
                 </div>
-                <span>
-                  Active {/* TODO: calculate recent activity if needed */}
-                </span>
+                <span>Active</span>
               </div>
 
               <div className="flex gap-2">
-                <Button
-                  variant={isJoined ? "outline" : "default"}
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => onJoinGroup(group.id)}
-                >
-                  {isJoined
-                    ? loading
-                      ? "Leaving"
-                      : "Leave"
-                    : loading
-                    ? "Joining"
-                    : "Join"}
-                </Button>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`/groups/${group.id}`}>View</Link>
-                </Button>
+                {isJoined ? (
+                  <>
+                    {/* Main Enter button */}
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 hover:bg-primary"
+                      asChild
+                    >
+                      <Link href={`/groups/${group.id}`}>Enter</Link>
+                    </Button>
+
+                    {/* Small Leave icon */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onJoinGroup(group.id)}
+                      disabled={loadingGroupId === group.id}
+                    >
+                      {loadingGroupId === group.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <LogOut className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </>
+                ) : (
+                  <div className="flex w-full gap-2">
+                    <Button
+                      size="sm"
+                      className="w-full flex-1"
+                      onClick={() => onJoinGroup(group.id)}
+                      disabled={loadingGroupId === group.id}
+                    >
+                      {loadingGroupId === group.id ? "Joining..." : "Join"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="hover:bg-transparent hover:text-primary"
+                      asChild
+                    >
+                      <Link href={`/groups/${group.id}`}>
+                        <Eye />
+                      </Link>
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -33,11 +33,9 @@ export const groupService = {
   },
 
   // Get all groups
-  async getGroups(type?: "country" | "theme") {
-    let query = supabase
-      .from("groups")
-      .select(
-        `
+  async getGroups(page = 0, limit = 10, type?: "country" | "theme") {
+    let query = supabase.from("groups").select(
+      `
       *,
       creator:users!created_by(id, first_name, last_name, username, avatar_url),
       group_members!group_members_group_id_fkey(
@@ -47,13 +45,25 @@ export const groupService = {
         joined_at
       )
     `
-      )
-      .order("created_at", { ascending: false });
+    );
 
-    if (type) query = query.eq("type", type);
+    // ✅ Filtering
+    if (type) {
+      query = query.eq("type", type);
+    }
+
+    // ✅ Ordering
+    query = query.order("created_at", { ascending: false });
+
+    // ✅ Pagination
+    query = query.range(page * limit, (page + 1) * limit - 1);
 
     const { data, error } = await query;
-    if (error) return { data: null, error };
+
+    if (error) {
+      console.error("getGroups error:", error);
+      return { data: null, error };
+    }
 
     // ✅ Convert storage key to signed URL
     const groupsWithImages = await Promise.all(

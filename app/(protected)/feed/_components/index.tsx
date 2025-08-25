@@ -29,6 +29,7 @@ export function Feed() {
   >("recent");
   const [page, setPage] = useState(0);
   const [showCreatePost, setShowCreatePost] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const { data: user } = useCurrentUserProfile();
   const currentUserId = user?.user.id as string;
@@ -88,6 +89,13 @@ export function Feed() {
       }
     }
   }, [postsData, page]);
+
+  useEffect(() => {
+    if (page === 0) {
+      // only show loader on first page
+      setLoading(isLoading);
+    }
+  }, [isLoading, page]);
 
   const handleLoadMore = () => {
     setPage((prev) => prev + 1);
@@ -196,7 +204,7 @@ export function Feed() {
 
         {["recent", "my-groups", "following", "popular"].map((tab) => (
           <TabsContent key={tab} value={tab} className="space-y-4 mt-6">
-           { posts && posts.length > 0 ? (
+            {!loading && posts && posts.length > 0 ? (
               posts.map((post) => (
                 <PostCard
                   key={post.id}
@@ -206,17 +214,23 @@ export function Feed() {
                   isGroup={false}
                 />
               ))
+            ) : loading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="animate-spin" />
+              </div>
             ) : (
-              <Card className="p-8 text-center">
-                <p className="text-muted-foreground">No posts to show yet.</p>
-              </Card>
+              !posts && (
+                <Card className="p-8 text-center">
+                  <p className="text-muted-foreground">No posts to show yet.</p>
+                </Card>
+              )
             )}
           </TabsContent>
         ))}
       </Tabs>
 
       {/* Load More */}
-      {posts && posts.length > 0 && (
+      {posts && posts.length > 10 && (
         <div className="text-center py-8">
           <Button variant="outline" onClick={handleLoadMore}>
             Load More Posts

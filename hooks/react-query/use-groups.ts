@@ -1,17 +1,22 @@
 // hooks/useGroups.ts
 import { useQuery } from "@tanstack/react-query";
-import type { Group } from "@/types/group";
 import { groupService } from "@/lib/supabase/service/groups-service";
 
-export const useGroups = (type?: "country" | "theme") => {
-  return useQuery<Group[], Error>({
-    queryKey: ["groups", type],
+export const useGroups = (page = 0, limit = 10, type?: "country" | "theme") => {
+  return useQuery({
+    queryKey: ["groups", type, page, limit],
     queryFn: async () => {
-      const { data, error } = await groupService.getGroups(type);
-      if (error) throw error;
-      return data || [];
+      const { data, error } = await groupService.getGroups(page, limit, type);
+      if (error)
+        throw new Error(
+          error && typeof error === "object" && "message" in error
+            ? error.message
+            : error || "Failed to fetch post"
+        );
+      return data;
     },
-    staleTime: 60 * 1000, // 1 min
     refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 1,
+    retry: 1,
   });
 };
