@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,11 +36,9 @@ export function CreateGroup() {
     register,
     handleSubmit,
     formState: { errors },
+    control,
     setValue,
-    watch,
   } = useForm<CreateGroupFormData>();
-
-  const groupType = watch("type");
 
   const { mutate: createGroup, isPending } = useCreateGroupMutation();
 
@@ -98,13 +96,13 @@ export function CreateGroup() {
       </div>
 
       <Card className="p-4">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Group Name */}
           <div className="space-y-2">
             <Label htmlFor="name">Group Name</Label>
             <Input
               id="name"
-              placeholder="e.g., Ghana Warriors, Pain Management Tips"
+              placeholder="Enter group name..."
               {...register("name", {
                 required: "Group name is required",
                 minLength: { value: 3, message: "At least 3 characters" },
@@ -136,82 +134,79 @@ export function CreateGroup() {
 
           {/* Group Type */}
           <div className="space-y-2">
-            <Label htmlFor="type">Group Type</Label>
-            <Select
-              onValueChange={(value) =>
-                setValue("type", value as "country" | "theme")
-              }
-              value="theme"
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select group type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="country">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4" /> Country-based
-                  </div>
-                </SelectItem>
-                <SelectItem value="theme">
-                  <div className="flex items-center gap-2">
-                    <Heart className="w-4 h-4" /> Theme-based
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <Label>Group Type</Label>
+            <Controller
+              name="type"
+              control={control}
+              rules={{ required: "Please select a group type" }}
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select group type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="country">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4" /> Country-based
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="theme">
+                      <div className="flex items-center gap-2">
+                        <Heart className="w-4 h-4" /> Theme-based
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
             {errors.type && (
-              <p className="text-sm text-destructive">
-                Please select a group type
-              </p>
+              <p className="text-sm text-destructive">{errors.type.message}</p>
             )}
           </div>
 
           {/* Group Image */}
           <div className="space-y-2">
-            <Label htmlFor="image">Group Image (Optional)</Label>
-            <div className="flex flex-col items-center gap-3 border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+            <Label htmlFor="groupImage">Group Banner (Optional)</Label>
+            <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg overflow-hidden">
               {preview ? (
-                <div className="">
-                  <div className="aspect-[12/1] relative">
-                    <img
-                      src={preview}
-                      alt="Preview"
-                      // className="w-32 h-32 object-cover rounded-lg"
-                      className="w-full h-[200px] object-cover rounded-t-lg"
-                    />
-                  </div>
-
+                <div className="relative">
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="w-full h-[200px] object-cover"
+                  />
                   <button
-                    title="delete"
+                    title="remove image"
                     type="button"
                     onClick={handleRemoveImage}
-                    className="absolute top-1 right-1 bg-white p-1 rounded-full shadow"
+                    className="absolute top-2 right-2 bg-white p-1 rounded-full shadow"
                   >
                     <Trash2Icon className="w-4 h-4 text-red-500" />
                   </button>
                 </div>
               ) : (
-                <ImageIcon className="w-12 h-12 text-muted-foreground" />
+                // The label makes the whole box clickable
+                <label
+                  htmlFor="groupImage"
+                  className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3 cursor-pointer w-full h-[200px]"
+                >
+                  <ImageIcon className="w-12 h-12" />
+                  <p className="text-sm">
+                    Click to upload a banner image for your group
+                  </p>
+                  <Input
+                    id="groupImage"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </label>
               )}
-
-              <Label
-                htmlFor="groupImage"
-                className="cursor-pointer inline-flex items-center px-4 py-2 border border-border rounded-md text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
-              >
-                <Upload className="w-4 h-4 mr-2" />{" "}
-                {preview ? "Change Image" : "Upload Image"}
-              </Label>
-              <Input
-                id="groupImage"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileChange}
-              />
             </div>
           </div>
 
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending} className="w-full">
             {isPending ? "Creating..." : "Create Group"}
           </Button>
         </form>

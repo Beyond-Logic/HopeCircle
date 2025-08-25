@@ -76,10 +76,10 @@ export function Post() {
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Back Button */}
       <div className="mb-2">
-        <Link href="/feed">
+        <Link href={`/groups/${post?.group?.id}`}>
           <Button variant="ghost" size="sm">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Feed
+            Go back to {post?.group?.name}
           </Button>
         </Link>
       </div>
@@ -90,6 +90,7 @@ export function Post() {
           onEdit={refetch as never}
           onDelete={refetch as never}
           isSinglePost
+          isGroup={true}
         />
       )}
     </div>
