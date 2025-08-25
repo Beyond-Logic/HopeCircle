@@ -21,6 +21,7 @@ import { ImageIcon, Send, User, X, Users, AtSign, Globe } from "lucide-react";
 import { postService } from "@/lib/supabase/service/post-service";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
 import { useUserFollowing } from "@/hooks/react-query/use-get-user-followers";
+import { useUserGroups } from "@/hooks/react-query/use-get-user-groups";
 
 interface CreatePostFormData {
   content: string;
@@ -61,12 +62,12 @@ CreatePostFormProps) {
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [tagQuery, setTagQuery] = useState("");
 
-  const userGroups = [
-    { id: "nigeria-warriors", name: "Nigeria Warriors" },
-    { id: "caregivers-support", name: "Caregivers Support" },
-    { id: "young-adults", name: "Young Adults with SCD" },
-    { id: "healthcare-pros", name: "Healthcare Professionals" },
-  ];
+  const { data: UserGroups } = useUserGroups(user?.user.id as string);
+
+  const userGroups = UserGroups?.map((item) => ({
+    id: item.group.id,
+    name: item.group.name,
+  }));
 
   const { data } = useUserFollowing(user?.user.id);
 
@@ -315,7 +316,7 @@ CreatePostFormProps) {
             </div>
           </div>
 
-          {!groupId && userGroups.length > 1 && (
+          {!groupId && userGroups && userGroups.length > 1 && (
             <div className="space-y-2">
               {/* <label className="text-sm font-medium text-muted-foreground">
                 Post to:

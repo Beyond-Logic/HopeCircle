@@ -518,7 +518,6 @@ PostCardProps) {
     name: item.group.name,
   }));
 
-  console.log("userGroups", userGroups);
 
   const { data: followed } = useUserFollowers(user?.user.id);
 
