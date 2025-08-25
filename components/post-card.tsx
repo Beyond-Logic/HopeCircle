@@ -63,6 +63,7 @@ import { useSearchParams } from "next/navigation";
 import { authService } from "@/lib/supabase/service/auth-service";
 import { useUserGroups } from "@/hooks/react-query/use-get-user-groups";
 import { useUpdatePost } from "@/hooks/react-query/use-posts-service";
+import { useIsUserInGroup } from "@/hooks/react-query/use-is-user-in-group";
 
 interface Post {
   id: string;
@@ -147,7 +148,6 @@ PostCardProps) {
   >([]);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [tagQuery, setTagQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const { mutate: addComment, isPending } = useAddComment();
 
   const [open, setOpen] = useState(false);
@@ -159,10 +159,14 @@ PostCardProps) {
   const [open3, setOpen3] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const { data: isMember } = useIsUserInGroup(
+    post?.group?.id as string,
+    user?.user.id as string
+  );
+
   const {
     data: commentsData,
-    error,
-    isLoading: isCommentLoading,
+
     refetch: refetchComments,
   } = useComments(post.id);
 
@@ -391,7 +395,6 @@ PostCardProps) {
     useUpdatePost();
 
   const handleEditPost = async () => {
-    setIsLoading(true);
     try {
       const updatedImages = [...existingKeys];
 
@@ -417,7 +420,6 @@ PostCardProps) {
       console.error(err);
       // error toast already handled in hook
     } finally {
-      setIsLoading(false);
     }
   };
 
@@ -915,23 +917,65 @@ PostCardProps) {
           {/* Post Actions */}
           <div className="flex items-center justify-between pt-3 border-t">
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleLike()}
-                className={`hover:bg-transparent ${
-                  isPostLiked
-                    ? "text-accent hover:text-accent"
-                    : "hover:text-accent"
-                }`}
-              >
-                <Heart
-                  className={`w-4 h-4 mr-2 ${
-                    isPostLiked ? "fill-current" : ""
+              {post?.group?.id && isMember ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleLike()}
+                  className={`hover:bg-transparent ${
+                    isPostLiked
+                      ? "text-accent hover:text-accent"
+                      : "hover:text-accent"
                   }`}
-                />
-                {post.likes}
-              </Button>
+                >
+                  <Heart
+                    className={`w-4 h-4 mr-2 ${
+                      isPostLiked ? "fill-current" : ""
+                    }`}
+                  />
+                  {post.likes}
+                </Button>
+              ) : !post.group?.id ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleLike()}
+                  className={`hover:bg-transparent ${
+                    isPostLiked
+                      ? "text-accent hover:text-accent"
+                      : "hover:text-accent"
+                  }`}
+                >
+                  <Heart
+                    className={`w-4 h-4 mr-2 ${
+                      isPostLiked ? "fill-current" : ""
+                    }`}
+                  />
+                  {post.likes}
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    toast(
+                      "You need to be a group member to react to this post"
+                    )
+                  }
+                  className={`hover:bg-transparent ${
+                    isPostLiked
+                      ? "text-accent hover:text-accent"
+                      : "hover:text-accent"
+                  }`}
+                >
+                  <Heart
+                    className={`w-4 h-4 mr-2 ${
+                      isPostLiked ? "fill-current" : ""
+                    }`}
+                  />
+                  {post.likes}
+                </Button>
+              )}
               {isSinglePost ? (
                 <Button
                   className="!bg-transparent hover:text-accent"
@@ -1473,7 +1517,6 @@ PostCardProps) {
                 className="max-w-[100vw] max-h-[90vh] object-contain rounded-lg"
               />
             </div>
-           
 
             {/* Next Button */}
             {imageUrls.length > 1 && (
