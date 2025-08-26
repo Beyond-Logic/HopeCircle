@@ -50,6 +50,9 @@ export function Groups() {
 
   const [loadingGroupId, setLoadingGroupId] = useState<string | null>(null);
 
+    console.log("groups", groups);
+
+
   const handleJoinGroup = async (groupId: string) => {
     if (!user?.user.id) return;
 

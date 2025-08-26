@@ -21,6 +21,7 @@ import {
   Settings,
   LogOut,
   User,
+  Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/authContext";
@@ -37,7 +38,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const navigation = [
     { name: "Feed", href: "/feed", icon: Home },
     { name: "Groups", href: "/groups", icon: Users },
-    { name: "Resources", href: "/resources", icon: BookOpen },
+    { name: "Inbox", href: "/inbox", icon: Inbox },
   ];
 
   const handleLogout = async () => {

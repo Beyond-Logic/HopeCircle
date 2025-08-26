@@ -72,6 +72,7 @@ export const groupService = {
             { count: "exact" }
           )
           .eq("user_id", userId)
+          .eq("group.status", "active") // 👈 only active groups
           .order("joined_at", { ascending: false })
           .range(page * limit, (page + 1) * limit - 1);
 
@@ -96,6 +97,8 @@ export const groupService = {
       `,
           { count: "exact" }
         );
+
+        query = query.eq("status", "active"); // 👈 only active groups
 
         if (type === "country" || type === "theme") {
           query = query.eq("type", type);
@@ -164,27 +167,93 @@ export const groupService = {
       ? await this.getGroupImageUrl(data.image_url)
       : null;
 
+    // ✅ Signed creator avatar
+    const creatorAvatarUrl = data.creator?.avatar_url
+      ? await authService.getAvatarUrl(data.creator.avatar_url)
+      : null;
+
+    // ✅ Signed member avatars
+    const signedMembers = await Promise.all(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (data.group_members ?? []).map(async (member: any) => ({
+        ...member,
+        user: {
+          ...member.user,
+          avatar_url: member.user?.avatar_url
+            ? await authService.getAvatarUrl(member.user.avatar_url)
+            : null,
+        },
+      }))
+    );
+
     // merge in dynamic member_count
     return {
       data: {
         ...data,
         image_url,
-        member_count: data.members_count?.[0]?.count ?? 0, // use aggregate count
+        creator: {
+          ...data.creator,
+          avatar_url: creatorAvatarUrl,
+        },
+        group_members: signedMembers,
+        member_count: data.members_count?.[0]?.count ?? 0,
       },
       error: null,
     };
   },
+
   // Create group
-  async createGroup(group: CreateGroup) {
+  async createGroup(group: Omit<CreateGroup, "creator_id">) {
+    const user = await supabase.auth.getUser();
+    if (!user.data.user) {
+      return { data: null, error: new Error("Not authenticated") };
+    }
+
+    const creatorId = user.data.user.id;
+
+    // Insert group with created_by = auth.uid()
     const { data, error } = await supabase
       .from("groups")
-      .insert(group)
+      .insert({
+        ...group,
+        created_by: creatorId, // ✅ correct column
+      })
       .select()
       .single();
 
-    return { data, error };
+    if (error || !data) return { data: null, error };
+
+    // ✅ Automatically join creator
+    const { error: memberError } = await supabase.from("group_members").insert({
+      group_id: data.id,
+      user_id: creatorId, // must match auth.uid()
+    });
+
+    if (memberError) {
+      return { data, error: memberError };
+    }
+
+    return { data, error: null };
   },
 
+  // groupService.ts
+  async updateGroup(
+    groupId: string,
+    updates: Partial<CreateGroup> & { status?: "active" | "inactive" }
+  ) {
+    const { data, error } = await supabase
+      .from("groups")
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", groupId)
+      .select()
+      .single();
+
+    if (error) return { data: null, error };
+    return { data, error: null };
+  },
   // Join group
   async joinGroup(groupId: string, userId: string) {
     const { data, error } = await supabase.from("group_members").insert({
