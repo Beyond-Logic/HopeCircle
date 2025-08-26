@@ -10,13 +10,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Users, MapPin, Heart, Settings, Share } from "lucide-react";
+import {
+  ArrowLeft,
+  Users,
+  MapPin,
+  Heart,
+  Settings,
+  Share,
+  User,
+} from "lucide-react";
 import { Loader2 } from "lucide-react"; // spinner
 import { useGetGroupById } from "@/hooks/react-query/use-group-by-id";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
 import { useIsUserInGroup } from "@/hooks/react-query/use-is-user-in-group";
 import { useGroupPosts } from "@/hooks/react-query/use-group-posts";
 import { useJoinGroup } from "@/hooks/react-query/use-join-group";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function GroupDetail() {
   const { data: user } = useCurrentUserProfile();
@@ -190,25 +199,30 @@ export function GroupDetail() {
             </div>
 
             <div className="flex gap-2">
-              <Button
-                variant={isMember ? "outline" : "default"}
-                onClick={() => handleJoinGroup(groupId, isMember as boolean)}
-              >
-                {isMember
-                  ? isPending
-                    ? "Leaving Group"
-                    : "Leave Group"
-                  : isPending
-                  ? "Joining Group"
-                  : "Join Group"}
-              </Button>
+              {group.created_by !== user?.user.id && (
+                <Button
+                  variant={isMember ? "outline" : "default"}
+                  onClick={() => handleJoinGroup(groupId, isMember as boolean)}
+                >
+                  {isMember
+                    ? isPending
+                      ? "Leaving Group"
+                      : "Leave Group"
+                    : isPending
+                    ? "Joining Group"
+                    : "Join Group"}
+                </Button>
+              )}
+
               {/* <Button variant="outline" size="icon">
                 <Share className="w-4 h-4" />
               </Button> */}
               {group.created_by === user?.user.id && (
-                <Button variant="outline" size="icon">
-                  <Settings className="w-4 h-4" />
-                </Button>
+                <Link href={`/groups/${group.id}/settings`}>
+                  <Button variant="outline" size="icon">
+                    <Settings className="w-4 h-4" />
+                  </Button>
+                </Link>
               )}
             </div>
           </div>
@@ -283,26 +297,45 @@ export function GroupDetail() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  group.group_members?.map((member: any, index: number) => (
-                    <Link href={`/profile/${member.user.username}`} key={index}>
-                      <div className="flex items-center gap-3 p-3 border rounded-lg">
-                        <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center">
-                          <span className="text-secondary-foreground font-semibold">
-                            {member.user.first_name.charAt(0)}
-                          </span>
+                  group.group_members?.map((member: any, index: number) => {
+                    const isAdmin = group.created_by === member.user.id;
+                    return (
+                      <Link
+                        href={`/profile/${member.user.username}`}
+                        key={index}
+                      >
+                        <div className="flex items-center gap-3 p-3 border rounded-lg">
+                          <Avatar className="w-10 h-10 flex-shrink-0">
+                            <AvatarImage
+                              src={member.user.avatar_url}
+                              alt="Your avatar"
+                              className="rounded-full"
+                            />
+
+                            <AvatarFallback>
+                              <User className="w-5 h-5" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-medium">
+                              {member.user.first_name} {member.user.last_name}{" "}
+                              {isAdmin ? (
+                                <Badge className="bg-amber-400 text-black">
+                                  Admin
+                                </Badge>
+                              ) : (
+                                ""
+                              )}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {member.user.genotype} • Joined{" "}
+                              {new Date(member.joined_at).toLocaleDateString()}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <p className="font-medium">
-                            {member.user.first_name} {member.user.last_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {member.user.genotype} • Joined{" "}
-                            {new Date(member.joined_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
-                  ))
+                      </Link>
+                    );
+                  })
                 }
               </div>
             </CardContent>
