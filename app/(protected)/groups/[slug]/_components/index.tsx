@@ -15,8 +15,8 @@ import { Loader2 } from "lucide-react"; // spinner
 import { useGetGroupById } from "@/hooks/react-query/use-group-by-id";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
 import { useIsUserInGroup } from "@/hooks/react-query/use-is-user-in-group";
-import { groupService } from "@/lib/supabase/service/groups-service";
 import { useGroupPosts } from "@/hooks/react-query/use-group-posts";
+import { useJoinGroup } from "@/hooks/react-query/use-join-group";
 
 export function GroupDetail() {
   const { data: user } = useCurrentUserProfile();
@@ -24,11 +24,11 @@ export function GroupDetail() {
   const params = useParams();
   const groupId = params.slug as string;
 
-  const { data: group, isLoading, error, refetch } = useGetGroupById(groupId);
-  const { data: isMember, refetch: memberRefetch } = useIsUserInGroup(
-    groupId,
-    user?.user.id as string
-  );
+  const { data: group, isLoading, error } = useGetGroupById(groupId);
+  const { data: isMember } = useIsUserInGroup(groupId, user?.user.id as string);
+  const { mutate: joinGroupMutate, isPending } = useJoinGroup();
+
+  console.log("group in details", group);
 
   const [page, setPage] = useState(0);
   const [loadingState, setLoadingState] = useState(false);
@@ -89,7 +89,6 @@ export function GroupDetail() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [posts, setPosts] = useState<any[]>([]);
-  const [loading, setIsLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   // Assign a background color based on group type
@@ -119,35 +118,9 @@ export function GroupDetail() {
     postRefetch();
   };
 
-  const handleLike = (postId: string) => {
-    setPosts(
-      posts.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              isLiked: !post.isLiked,
-              likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-            }
-          : post
-      )
-    );
-  };
-
-  const handleJoinGroup = async (groupId: string) => {
-    setIsLoading(true);
-    try {
-      if (!isMember) {
-        await groupService.joinGroup(groupId, user?.user.id as string);
-      } else {
-        await groupService.leaveGroup(groupId, user?.user.id as string);
-      }
-      refetch();
-      memberRefetch();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleJoinGroup = (groupId: string, isMember: boolean) => {
+    if (!user?.user.id) return;
+    joinGroupMutate({ groupId, userId: user.user.id, isMember });
   };
 
   const handleLoadMore = () => {
@@ -205,7 +178,7 @@ export function GroupDetail() {
               <div className="flex items-center gap-4 text-muted-foreground text-xs mb-4">
                 <div className="flex items-center gap-1">
                   <Users className="w-4 h-4" />
-                  <span>{group.member_count?.toLocaleString()} members</span>
+                  <span>{group.group_members.length} members</span>
                 </div>
                 <span>
                   Created {new Date(group.created_at).toLocaleDateString()}
@@ -219,13 +192,13 @@ export function GroupDetail() {
             <div className="flex gap-2">
               <Button
                 variant={isMember ? "outline" : "default"}
-                onClick={() => handleJoinGroup(groupId)}
+                onClick={() => handleJoinGroup(groupId, isMember as boolean)}
               >
                 {isMember
-                  ? loading
+                  ? isPending
                     ? "Leaving Group"
                     : "Leave Group"
-                  : loading
+                  : isPending
                   ? "Joining Group"
                   : "Join Group"}
               </Button>
@@ -265,7 +238,6 @@ export function GroupDetail() {
                   <PostCard
                     key={post.id}
                     post={post}
-                    onLike={handleLike}
                     groupId={groupId}
                     isGroup={true}
                   />
@@ -284,7 +256,7 @@ export function GroupDetail() {
                 )
               )}
 
-              {posts && posts.length > 0 && (
+              {posts && posts.length > 9 && (
                 <div className="text-center py-8">
                   <Button variant="outline" onClick={handleLoadMore}>
                     Load More Posts

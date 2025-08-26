@@ -18,7 +18,6 @@ import {
 import {
   Heart,
   MessageCircle,
-  Share,
   MoreHorizontal,
   User,
   Users,
@@ -31,7 +30,6 @@ import {
   AtSign,
   ImageIcon,
   Globe,
-  Send,
   Eye,
   Info,
 } from "lucide-react";
@@ -61,9 +59,15 @@ import { commentService } from "@/lib/supabase/service/comment-service";
 import ConfirmReportModal from "./ui/confirmation-report-post-modal";
 import { useSearchParams } from "next/navigation";
 import { authService } from "@/lib/supabase/service/auth-service";
-import { useUserGroups } from "@/hooks/react-query/use-get-user-groups";
-import { useUpdatePost } from "@/hooks/react-query/use-posts-service";
+import { useUserGroups } from "@/hooks/react-query/use-user-groups";
+import {
+  useDeleteComment,
+  useDeletePost,
+  useDeleteReply,
+  useUpdatePost,
+} from "@/hooks/react-query/use-posts-service";
 import { useIsUserInGroup } from "@/hooks/react-query/use-is-user-in-group";
+import { PostContent } from "./post-content";
 
 interface Post {
   id: string;
@@ -87,7 +91,6 @@ interface Post {
   updatedAt: Date;
   likes: number;
   comments: number;
-  isLiked: boolean;
   post_likes: Array<{ user_id: string }>;
   postTags?: Array<{ tagged_user: { id: string; username: string } }>;
 }
@@ -181,8 +184,6 @@ PostCardProps) {
   const [commentId, setCommentId] = useState("");
   const [replyId, setReplyId] = useState("");
 
-  console.log("currentUserId", currentUserId, post);
-
   const canEdit = post.author.id === currentUserId;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -192,10 +193,8 @@ PostCardProps) {
   };
 
   // 🔑 Convert storage keys → signed URLs
-  const { data, refetch } = usePostImages(post.images);
+  const { data } = usePostImages(post.images);
   const imageUrls = data;
-
-  // console.log("post", post);
 
   useEffect(() => {
     if (showCommentsSection) {
@@ -428,39 +427,36 @@ PostCardProps) {
     setIsEditing(false);
   };
 
-  const handleDeletePost = async () => {
-    try {
-      setLoading(true);
-      await postService.deletePost(post.id);
-      onDelete?.(post.id);
-      setOpen1(false);
-    } finally {
-      setLoading(false);
-    }
+  const { mutate: deletePost, isPending: isDeletePending } = useDeletePost();
+  const { mutate: deleteComment, isPending: deletingComment } =
+    useDeleteComment();
+  const { mutate: deleteReply, isPending: deletingReply } = useDeleteReply();
+
+  const handleDeletePost = () => {
+    deletePost(post.id, {
+      onSuccess: () => {
+        onDelete?.(post.id); // if you want parent state updates too
+        setOpen1(false);
+      },
+    });
   };
 
-  const handleDeleteComment = async () => {
-    try {
-      setLoading(true);
-      await commentService.deleteComment(commentId);
-      onDelete?.(commentId);
-      refetchComments();
-      setOpen2(false);
-    } finally {
-      setLoading(false);
-    }
+  const handleDeleteComment = () => {
+    deleteComment(commentId, {
+      onSuccess: () => {
+        onDelete?.(commentId);
+        setOpen2(false);
+      },
+    });
   };
 
-  const handleDeleteReply = async () => {
-    try {
-      setLoading(true);
-      await commentService.deleteReply(replyId);
-      onDelete?.(replyId);
-      refetchComments();
-      setOpen3(false);
-    } finally {
-      setLoading(false);
-    }
+  const handleDeleteReply = () => {
+    deleteReply(replyId, {
+      onSuccess: () => {
+        onDelete?.(replyId);
+        setOpen3(false);
+      },
+    });
   };
 
   const startEditingComment = (commentId: string, currentText: string) => {
@@ -511,13 +507,20 @@ PostCardProps) {
     setEditCommentText("");
   };
 
-  const { data: UserGroups } = useUserGroups(currentUserId);
+  const { data: UserGroups } = useUserGroups(currentUserId, 0, 10, true);
 
-  const userGroups = UserGroups?.map((item) => ({
-    id: item.group.id,
-    name: item.group.name,
-  }));
-
+  const userGroups =
+    UserGroups?.data?.map((item) => ({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      type: item.type,
+      imageUrl: item.image_url,
+      memberCount: item.member_count,
+      featured: item.featured,
+      createdAt: item.created_at,
+      createdBy: item.created_by,
+    })) || [];
 
   const { data: followed } = useUserFollowers(user?.user.id);
 
@@ -525,8 +528,6 @@ PostCardProps) {
 
   const [content, setContent] = useState(post.content || "");
   const contentValue = content;
-
-  console.log("comments", comments);
 
   useEffect(() => {
     setTaggedUsers(
@@ -892,9 +893,7 @@ PostCardProps) {
                 </div>
               </div>
             ) : (
-              <p className="text-foreground leading-relaxed whitespace-pre-wrap line-clamp-5">
-                {post.content}
-              </p>
+             <PostContent content={post.content}/>
             )}
 
             {post.taggedUsers && post.taggedUsers.length > 0 && (
@@ -957,9 +956,7 @@ PostCardProps) {
                   variant="ghost"
                   size="sm"
                   onClick={() =>
-                    toast(
-                      "You need to be a group member to react to this post"
-                    )
+                    toast("You need to be a group member to react to this post")
                   }
                   className={`hover:bg-transparent ${
                     isPostLiked
@@ -991,7 +988,7 @@ PostCardProps) {
                     post.group?.id || isGroup
                       ? `/groups/${post?.group?.id || groupId}/post/${
                           post?.id
-                        }??showComments=true#showComments`
+                        }?showComments=true#showComments`
                       : `/post/${post.id}?showComments=true#showComments`
                   }
                   // href={`/post/${post.id}?showComments=true#showComments`}
@@ -1553,21 +1550,21 @@ PostCardProps) {
         onOpenChange={setOpen1}
         type="post"
         onConfirm={handleDeletePost}
-        loading={loading}
+        loading={isDeletePending}
       />
       <ConfirmDeletePostModal
         open={open2}
         onOpenChange={setOpen2}
         type="comment"
         onConfirm={handleDeleteComment}
-        loading={loading}
+        loading={deletingComment}
       />
       <ConfirmDeletePostModal
         open={open3}
         onOpenChange={setOpen3}
         type="reply"
         onConfirm={handleDeleteReply}
-        loading={loading}
+        loading={deletingReply}
       />
 
       <ConfirmReportModal

@@ -1,40 +1,40 @@
+import { commentService } from "@/lib/supabase/service/comment-service";
 import { postService } from "@/lib/supabase/service/post-service";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 
-interface UseGetPostsOptions {
-  page?: number;
-  limit?: number;
-  filter?: "recent" | "my-groups" | "following" | "popular";
-  userId?: string;
-}
-
 export function useGetPosts({
-  page = 0,
   limit = 10,
   filter = "recent",
   userId,
-}: UseGetPostsOptions = {}) {
-  return useQuery({
-    queryKey: ["posts", { page, limit, filter, userId }],
-    queryFn: async () => {
-      const { data, error } = await postService.getPosts(
-        page,
+}: {
+  limit?: number;
+  filter?: "recent" | "my-groups" | "following" | "popular";
+  userId?: string;
+}) {
+  return useInfiniteQuery({
+    queryKey: ["posts", { limit, filter, userId }],
+    queryFn: async ({ pageParam }: { pageParam: number }) => {
+      const { data, error, hasMore } = await postService.getPosts(
+        pageParam,
         limit,
         filter,
         userId
       );
-      if (error)
-        throw new Error(
-          error && typeof error === "object" && "message" in error
-            ? error.message
-            : error || "Failed to fetch posts"
-        );
-      return data;
+      if (error) throw error;
+      return { posts: data, nextPage: hasMore ? pageParam + 1 : undefined };
     },
-    // placeholderData: (previousData) => previousData, // good for pagination
+    initialPageParam: 0,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getNextPageParam: (lastPage: { posts: any; nextPage?: number }) =>
+      lastPage.nextPage,
     refetchOnWindowFocus: false,
-    staleTime: 1000 * 60 * 1,
+    staleTime: 1000 * 60,
     retry: 1,
   });
 }
@@ -66,7 +66,7 @@ export function useUpdatePost() {
     mutationFn: ({ postId, updates }: { postId: string; updates: any }) =>
       postService.updatePost(postId, updates),
 
-    onSuccess: (res, variables) => {
+    onSuccess: (res) => {
       if (res.error) {
         toast.error("Failed to update post. Please try again.");
         return;
@@ -74,7 +74,8 @@ export function useUpdatePost() {
 
       // ✅ Invalidate post-related queries
       queryClient.invalidateQueries({ queryKey: ["groupPosts"] });
-      queryClient.invalidateQueries({ queryKey: ["comments"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+      // queryClient.invalidateQueries({ queryKey: ["comments"] });
 
       toast.success("Post updated successfully!");
     },
@@ -83,6 +84,161 @@ export function useUpdatePost() {
     onError: (error: any) => {
       console.error(error);
       toast.error("Failed to update post. Please try again.");
+    },
+  });
+}
+
+export function useDeletePost() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (postId: string) => postService.deletePost(postId),
+    onSuccess: (_, postId) => {
+      // Invalidate queries so UI updates
+      queryClient.invalidateQueries({ queryKey: ["posts"] }); // all posts
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] }); // user-specific posts
+      queryClient.invalidateQueries({ queryKey: ["post", postId] }); // single post
+    },
+  });
+}
+
+export function useDeleteComment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (commentId: string) => commentService.deleteComment(commentId),
+    onSuccess: (_, commentId) => {
+      // Invalidate all queries related to comments
+      queryClient.invalidateQueries({ queryKey: ["posts"] }); // all posts
+      queryClient.invalidateQueries({ queryKey: ["groupPosts"] }); // user-specific posts
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] }); // user-specific posts
+      queryClient.invalidateQueries({ queryKey: ["comments"] });
+      queryClient.invalidateQueries({ queryKey: ["comment", commentId] });
+    },
+  });
+}
+
+export function useDeleteReply() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (replyId: string) => commentService.deleteReply(replyId),
+    onSuccess: (_, replyId) => {
+      // Invalidate all queries related to comments (and replies live under comments)
+      queryClient.invalidateQueries({ queryKey: ["posts"] }); // all posts
+      queryClient.invalidateQueries({ queryKey: ["groupPosts"] }); // user-specific posts
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["comments"] });
+      queryClient.invalidateQueries({ queryKey: ["reply", replyId] });
+    },
+  });
+}
+
+export function useCreatePost({
+  //@ts-expect-error - no type
+  user,
+  //@ts-expect-error - no type
+  selectedFiles,
+  //@ts-expect-error - no type
+  selectedGroupId,
+  //@ts-expect-error - no type
+  taggedUsers,
+  //@ts-expect-error - no type
+  reset,
+  //@ts-expect-error - no type
+  setImagePreviews,
+  //@ts-expect-error - no type
+  setSelectedFiles,
+  //@ts-expect-error - no type
+  setSelectedGroupId,
+  //@ts-expect-error - no type
+  setTaggedUsers,
+  //@ts-expect-error - no type
+  setShowTagSuggestions,
+  //@ts-expect-error - no type
+  setTagQuery,
+  //@ts-expect-error - no type
+  refetch,
+  //@ts-expect-error - no type
+  onPostCreated,
+}) {
+  const queryClient = useQueryClient();
+
+  interface CreatePostFormData {
+    content: string;
+    images?: FileList;
+    groupId?: string;
+  }
+
+  return useMutation({
+    mutationFn: async (data: CreatePostFormData) => {
+      const currentUserId = user?.user.id || "";
+
+      // 1. Create post without images (to get postId)
+      const { data: createdPost, error: postError } =
+        await postService.createPost({
+          content: data.content,
+          author_id: currentUserId,
+          group_id:
+            selectedGroupId !== "your-timeline" ? selectedGroupId : undefined,
+        });
+
+      if (postError || !createdPost) {
+        throw new Error("Error creating post");
+      }
+
+      // 2. Upload images
+      const uploadedKeys: string[] = [];
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const fileKey = await postService.uploadPostImage(
+          selectedFiles[i],
+          createdPost.id,
+          i
+        );
+        uploadedKeys.push(fileKey);
+      }
+
+      // 3. Update post with uploaded images
+      if (uploadedKeys.length > 0) {
+        await postService.updatePost(createdPost.id, { images: uploadedKeys });
+      }
+
+      // 4. Add tagged users
+      if (taggedUsers.length > 0) {
+        //@ts-expect-error - no type
+        const taggedIds = taggedUsers.map((u) => u.id);
+        await postService.addPostTags(createdPost.id, taggedIds);
+      }
+
+      // 5. Refetch full post
+      const { data: fullPost } = await postService.updatePost(
+        createdPost.id,
+        {}
+      );
+
+      return fullPost || createdPost;
+    },
+    onSuccess: (newPost) => {
+      // ✅ Invalidate posts query so feed refetches
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["groupPosts"] });
+
+      // Call parent callback
+      onPostCreated?.(newPost);
+
+      // Reset form state
+      reset();
+      setImagePreviews([]);
+      setSelectedFiles([]);
+      setSelectedGroupId("");
+      setTaggedUsers([]);
+      setShowTagSuggestions(false);
+      setTagQuery("");
+      refetch?.();
+    },
+    onError: (error) => {
+      console.error("Error creating post:", error);
     },
   });
 }

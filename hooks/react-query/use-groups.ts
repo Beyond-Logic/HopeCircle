@@ -1,22 +1,33 @@
 // hooks/useGroups.ts
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { groupService } from "@/lib/supabase/service/groups-service";
 
-export const useGroups = (page = 0, limit = 10, type?: "country" | "theme") => {
-  return useQuery({
-    queryKey: ["groups", type, page, limit],
-    queryFn: async () => {
-      const { data, error } = await groupService.getGroups(page, limit, type);
-      if (error)
-        throw new Error(
-          error && typeof error === "object" && "message" in error
-            ? error.message
-            : error || "Failed to fetch post"
-        );
-      return data;
+export const useGroups = (
+  limit = 10,
+  type?: "country" | "theme" | "joined",
+  search?: string,
+  userId?: string // ✅ added userId
+) => {
+  return useInfiniteQuery({
+    queryKey: ["groups", { type, search, limit, userId }],
+    queryFn: async ({ pageParam }: { pageParam: number }) => {
+      const { data, count, error } = await groupService.getGroups(
+        pageParam,
+        limit,
+        type,
+        search,
+        userId // ✅ pass userId to the service
+      );
+      if (error) throw error;
+      return { data: data ?? [], count: count ?? 0, page: pageParam };
     },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const total = lastPage.count ?? 0;
+      const loaded = allPages.flatMap((p) => p.data).length;
+      return loaded < total ? allPages.length : undefined;
+    },
+    staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
-    staleTime: 1000 * 60 * 1,
-    retry: 1,
   });
 };

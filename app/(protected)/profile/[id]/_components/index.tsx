@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useMemo, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
@@ -16,8 +16,8 @@ import {
   MessageCircle,
   Settings,
   User as UserIcon,
+  Loader2,
 } from "lucide-react";
-import { useAuth } from "@/context/authContext";
 import {
   useProfileByUsername,
   useCurrentUserProfile,
@@ -26,85 +26,97 @@ import { authService } from "@/lib/supabase/service/auth-service";
 import { userService } from "@/lib/supabase/service/users-service";
 import { toast } from "sonner";
 import { useUserFollowing } from "@/hooks/react-query/use-get-user-following";
-
-// Mock user posts
-const mockUserPosts = [
-  {
-    id: "user-post-1",
-    author: {
-      id: "user1",
-      name: "Amara Johnson",
-      genotype: "SS",
-      country: "Nigeria",
-      avatar: null,
-      username: "amara_j",
-      avatar_preview: ""
-    },
-    content:
-      "Just had my monthly check-up and my hemoglobin levels are stable! Feeling grateful for this community's support during my tough days.",
-    image: null,
-    updatedAt: new Date("2024-01-15T10:30:00Z"),
-    createdAt: new Date("2024-01-15T09:00:00Z"),
-    likes: 24,
-    comments: 8,
-    isLiked: false,
-    post_likes: [], // Add this property to match the Post type
-  },
-];
-
-// Mock user groups
-const mockUserGroups = [
-  { id: "nigeria-warriors", name: "Nigeria Warriors", memberCount: 1247 },
-  { id: "young-warriors", name: "Young Warriors (18-30)", memberCount: 743 },
-  { id: "pain-management", name: "Pain Management Tips", memberCount: 1834 },
-];
+import { useUserGroups } from "@/hooks/react-query/use-user-groups";
+import { useUserPosts } from "@/hooks/react-query/use-user-posts";
 
 export function Profile() {
   const params = useParams();
+  const { data } = useCurrentUserProfile();
+
+  const user = data?.user;
   const userId = params.id as string;
-  const { user } = useAuth();
 
-  console.log("params id:", userId);
-
-  const [isFollowLoading, setIsFollowLoading] = useState(false);
-
-  // State for posts and avatar preview
-  const [posts, setPosts] = useState(mockUserPosts);
-  const [profilePreview, setProfilePreview] = useState<string | null>(null);
-
-  // ---------------------------
-  // React Query hooks
-  // ---------------------------
   const isMe = userId === "me";
+
   const {
     data: currentUserProfileData,
     isLoading: isLoadingCurrentUser,
     isError: isErrorCurrentUser,
-    error: errorCurrentUser,
   } = useCurrentUserProfile();
   const {
     data: otherUserProfileData,
     isLoading: isLoadingOtherUser,
     isError: isErrorOtherUser,
-    error: errorOtherUser,
   } = useProfileByUsername(userId);
 
   const profileData = isMe ? currentUserProfileData : otherUserProfileData;
   const isLoading = isMe ? isLoadingCurrentUser : isLoadingOtherUser;
   const isError = isMe ? isErrorCurrentUser : isErrorOtherUser;
-  const error = isMe ? errorCurrentUser : errorOtherUser;
+
+  const {
+    data: userPosts,
+    isLoading: isUserPostsLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useUserPosts(profileData?.profile?.id as string, 10);
+
+  const posts = useMemo(() => {
+    if (!userPosts?.pages) return [];
+    return userPosts.pages.flatMap((page) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      page.data.map((post: any) => ({
+        id: post.id,
+        author: {
+          id: post.author.id,
+          name: `${post.author.first_name} ${post.author.last_name}`,
+          genotype: post.author.genotype,
+          country: post.author.country,
+          avatar: post.author.avatar_url || null,
+          username: post.author.username,
+          avatar_preview: post.author.avatar_preview,
+        },
+        content: post.content,
+        images: post.images || [],
+        group: post.group ? { id: post.group.id, name: post.group.name } : null,
+        createdAt: post.created_at,
+        updatedAt: post.updated_at,
+        likes: post.post_likes.length || 0,
+        post_likes: post.post_likes || [],
+        comments: post.comments?.[0]?.count || 0,
+        postTags: post.post_tags || [],
+      }))
+    );
+  }, [userPosts?.pages]);
+
+  const postCount = userPosts?.pages?.[0].count;
+
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
+  // State for posts and avatar preview
+  const [profilePreview, setProfilePreview] = useState<string | null>(null);
+
+  const {
+    data: userGroups,
+    isLoading: isUserGroupsLoading,
+    fetchNextPage: fetchNextGroupPage,
+    hasNextPage: hasMoreGroups,
+    isFetchingNextPage: isFetchingMoreGroups,
+  } = useUserGroups(profileData?.profile?.id as string, 10);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const groups: any[] = useMemo(() => {
+    if (!userGroups?.pages) return [];
+    return userGroups.pages.flatMap((page) => page.data);
+  }, [userGroups?.pages]);
+
+  const groupCount = userGroups?.pages?.[0]?.count ?? 0;
+
+  // const error = isMe ? errorCurrentUser : errorOtherUser;
 
   const { data: following, refetch } = useUserFollowing(user?.id);
 
-  // const { data: followers } = useUserFollowers(user?.id);
-
-  console.log("Profile data:", profileData, error);
-
   const isFollowing = following?.some((f) => f.id === profileData?.profile.id);
-
-  console.log("Is following:", isFollowing, following);
-
-  // console.log("Followers data:", followers);
 
   // ---------------------------
   // Set avatar preview when profile loads
@@ -120,10 +132,36 @@ export function Profile() {
       .then(setProfilePreview);
   }, [profileData]);
 
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!loadMoreRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 1 }
+    );
+
+    observer.observe(loadMoreRef.current);
+
+    return () => {
+      if (loadMoreRef.current) observer.unobserve(loadMoreRef.current);
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   // ---------------------------
   // Loading & error states
   // ---------------------------
-  if (isLoading) return null;
+  if (isLoading)
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="animate-spin" />
+      </div>
+    );
   if (isError || !profileData?.profile)
     return (
       <div className="text-center py-12">
@@ -133,20 +171,6 @@ export function Profile() {
         </Link>
       </div>
     );
-
-  const handleLike = (postId: string) => {
-    setPosts(
-      posts.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              isLiked: !post.isLiked,
-              likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-            }
-          : post
-      )
-    );
-  };
 
   const handleFollowUser = async () => {
     if (!user) return;
@@ -263,11 +287,11 @@ export function Profile() {
 
               <div className="flex gap-6 mt-4">
                 <div className="text-center">
-                  <div className="text-xl font-bold">10</div>
+                  <div className="text-xl font-bold">{postCount}</div>
                   <div className="text-sm text-muted-foreground">Posts</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl font-bold">20</div>
+                  <div className="text-xl font-bold">{groupCount}</div>
                   <div className="text-sm text-muted-foreground">Groups</div>
                 </div>
               </div>
@@ -285,45 +309,95 @@ export function Profile() {
         </TabsList>
 
         <TabsContent value="posts" className="space-y-4">
-          {posts.length > 0 ? (
-            posts.map((post) => (
-              <PostCard key={post.id} post={post} onLike={handleLike} />
-            ))
+          {posts &&
+            posts.length > 0 &&
+            posts.map((post) => <PostCard key={post.id} post={post} />)}
+
+          {isUserPostsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="animate-spin" />
+            </div>
           ) : (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No posts yet</h3>
-                <p className="text-muted-foreground">
-                  {user
-                    ? "Share your first post with the community!"
-                    : "This user hasn't posted yet."}
-                </p>
-              </CardContent>
-            </Card>
+            !posts && (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No posts yet</h3>
+                  <p className="text-muted-foreground">
+                    {user
+                      ? "Share your first post with the community!"
+                      : "This user hasn't posted yet."}
+                  </p>
+                </CardContent>
+              </Card>
+            )
+          )}
+
+          {/* Load More */}
+          {hasNextPage && (
+            <div
+              ref={loadMoreRef}
+              className="h-10 flex items-center justify-center"
+            >
+              {isFetchingNextPage && <Loader2 className="animate-spin" />}
+            </div>
           )}
         </TabsContent>
 
         <TabsContent value="groups" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {mockUserGroups.map((group) => (
-              <Card key={group.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold">{group.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {group.memberCount.toLocaleString()} members
-                      </p>
+            {groups &&
+              groups.length > 0 &&
+              groups.map((group) => (
+                <Card key={group.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold">{group.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {group.member_count.toLocaleString()} members
+                        </p>
+                      </div>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/groups/${group.id}`}>View</Link>
+                      </Button>
                     </div>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/groups/${group.id}`}>View</Link>
-                    </Button>
-                  </div>
+                  </CardContent>
+                </Card>
+              ))}
+          </div>
+
+          {isUserGroupsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="animate-spin" />
+            </div>
+          ) : (
+            groups.length === 0 && (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No groups yet</h3>
+                  <p className="text-muted-foreground">
+                    {user
+                      ? "Create your first group!"
+                      : "This user hasn't joined any group yet."}
+                  </p>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+            )
+          )}
+          {/* Load More */}
+          {hasMoreGroups && (
+            <div className="text-center py-8">
+              <Button
+                variant="outline"
+                onClick={() => fetchNextGroupPage()}
+                disabled={isFetchingMoreGroups}
+              >
+                {isFetchingMoreGroups ? "Loading..." : "Load More Groups"}
+              </Button>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="about" className="space-y-4">

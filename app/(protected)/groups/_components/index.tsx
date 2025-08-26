@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,8 +16,8 @@ import {
   Plus,
   Loader2,
   Eye,
-  X,
   LogOut,
+  ListRestart,
 } from "lucide-react";
 import { useGroups } from "@/hooks/react-query/use-groups";
 import { groupService } from "@/lib/supabase/service/groups-service";
@@ -30,49 +30,25 @@ export function Groups() {
     "all" | "joined" | "country" | "theme"
   >("all");
 
-  const [page, setPage] = useState(0);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [allGroups, setAllGroups] = useState<any[]>([]); // ✅ store merged groups
-
-  const active =
-    activeTab === "country" || activeTab === "theme" ? activeTab : undefined;
+  const type = activeTab as "joined" | "country" | "theme";
+  // ✅ type filter
 
   const {
-    data: groupsData,
+    data,
     isLoading,
     error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
     refetch,
-  } = useGroups(page, 10, active);
+  } = useGroups(10, type, searchQuery, user?.user.id as string);
 
-  // ✅ Merge groups whenever new data comes in
-  useEffect(() => {
-    if (page === 0) {
-     if(groupsData){
-       setAllGroups(groupsData); // reset when starting fresh
-     }
-    } else {
-     if(groupsData){
-       setAllGroups((prev) => [...prev, ...groupsData]); // append next page
-     }
-    }
-  }, [groupsData, page]);
-
-  // Cast with merged groups
-  const groups = allGroups as Array<{
-    id: string;
-    name: string;
-    description: string;
-    type: "country" | "theme";
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    group_members?: Array<any>;
-    image_url?: string;
-    creator_id: string;
-    created_at: string;
-    updated_at: string;
-  }>;
+  const groups = useMemo(() => {
+    if (!data?.pages) return [];
+    return data.pages.flatMap((page) => page.data);
+  }, [data?.pages]);
 
   const [loadingGroupId, setLoadingGroupId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
   const handleJoinGroup = async (groupId: string) => {
     if (!user?.user.id) return;
@@ -100,31 +76,6 @@ export function Groups() {
     }
   };
 
-  const filteredGroups = groups.filter((group) => {
-    const matchesSearch =
-      group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      group.description.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const isJoined = (group.group_members?.length || 0) > 0;
-    const matchesTab =
-      activeTab === "all" ||
-      (activeTab === "joined" && isJoined) ||
-      (activeTab === "country" && group.type === "country") ||
-      (activeTab === "theme" && group.type === "theme");
-
-    return matchesSearch && matchesTab;
-  });
-
-  useEffect(() => {
-    if (page === 0) {
-      setLoading(isLoading);
-    }
-  }, [isLoading, page]);
-
-  const handleLoadMore = () => {
-    setPage((prev) => prev + 1);
-  };
-
   if (error) return null;
 
   return (
@@ -145,14 +96,10 @@ export function Groups() {
         </Link>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-6">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <>
-          {/* Search */}
-          <div className="relative">
+      <>
+        {/* Search */}
+        <div className="flex items-center gap-2 w-full">
+          <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
               placeholder="Search groups..."
@@ -161,41 +108,60 @@ export function Groups() {
               className="pl-10"
             />
           </div>
+          <ListRestart
+            className="cursor-pointer"
+            onClick={() => {
+              setActiveTab("all");
+              setSearchQuery("");
+            }}
+          />
+        </div>
 
-          {/* Tabs */}
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) =>
-              setActiveTab(value as "all" | "joined" | "country" | "theme")
-            }
-          >
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="all">All Groups</TabsTrigger>
-              <TabsTrigger value="joined">Joined</TabsTrigger>
-              <TabsTrigger value="country">By Country</TabsTrigger>
-              <TabsTrigger value="theme">By Theme</TabsTrigger>
-            </TabsList>
+        {/* Tabs */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) =>
+            setActiveTab(value as "all" | "joined" | "country" | "theme")
+          }
+        >
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="all">All Groups</TabsTrigger>
+            <TabsTrigger value="joined">Joined</TabsTrigger>
+            <TabsTrigger value="country">By Country</TabsTrigger>
+            <TabsTrigger value="theme">By Theme</TabsTrigger>
+          </TabsList>
 
+          {isLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
             <TabsContent value={activeTab} className="mt-6">
               <GroupGrid
-                groups={filteredGroups}
+                groups={groups}
                 onJoinGroup={handleJoinGroup}
                 loadingGroupId={loadingGroupId as string}
                 userId={user?.user.id as string}
                 isLoading={isLoading}
+                setActiveTab={setActiveTab}
+                setSearchQuery={setSearchQuery}
               />
             </TabsContent>
-          </Tabs>
-
-          {groups && groups.length > 10 && (
-            <div className="text-center py-8">
-              <Button variant="outline" onClick={handleLoadMore}>
-                Load More Groups
-              </Button>
-            </div>
           )}
-        </>
-      )}
+        </Tabs>
+
+        {hasNextPage && (
+          <div className="text-center py-8">
+            <Button
+              variant="outline"
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+            >
+              {isFetchingNextPage ? "Loading..." : "Load More Groups"}
+            </Button>
+          </div>
+        )}
+      </>
     </div>
   );
 }
@@ -213,7 +179,9 @@ interface GroupGridProps {
   onJoinGroup: (groupId: string) => void;
   loadingGroupId: string;
   userId: string;
-  isLoading: boolean
+  isLoading: boolean;
+  setActiveTab: (tab: "all" | "joined" | "country" | "theme") => void;
+  setSearchQuery: (query: string) => void;
 }
 
 function GroupGrid({
@@ -221,16 +189,27 @@ function GroupGrid({
   onJoinGroup,
   loadingGroupId,
   userId,
-  isLoading
+  isLoading,
+  setActiveTab,
+  setSearchQuery,
 }: GroupGridProps) {
   if (groups.length === 0 && !isLoading) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center flex flex-col justify-center items-center py-12">
         <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
         <h3 className="text-lg font-semibold mb-2">No groups found</h3>
         <p className="text-muted-foreground">
           Try adjusting your search or browse different categories.
         </p>
+        <div className="mt-3">
+          <ListRestart
+            className="cursor-pointer"
+            onClick={() => {
+              setActiveTab("all");
+              setSearchQuery("");
+            }}
+          />
+        </div>
       </div>
     );
   }

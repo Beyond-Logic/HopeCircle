@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { CreatePostForm } from "@/components/create-post-form";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -27,26 +26,25 @@ export function Feed() {
   const [activeTab, setActiveTab] = useState<
     "recent" | "my-groups" | "following" | "popular"
   >("recent");
-  const [page, setPage] = useState(0);
+
   const [showCreatePost, setShowCreatePost] = useState(false);
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
 
   const { data: user } = useCurrentUserProfile();
   const currentUserId = user?.user.id as string;
 
   const {
-    data: postsData,
-    isLoading,
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
     refetch,
+    isLoading,
   } = useGetPosts({
-    page,
     limit: 10,
     filter: activeTab,
     userId: currentUserId,
   });
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [posts, setPosts] = useState<any[]>([]);
 
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
 
@@ -56,11 +54,12 @@ export function Feed() {
       .then(setProfilePreview);
   }, [user?.profile?.avatar_url]);
 
-  // Merge paginated posts
-  useEffect(() => {
-    if (postsData) {
+  const posts = useMemo(() => {
+    if (!data?.pages) return [];
+
+    return data.pages.flatMap((page) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const formatted = postsData.map((post: any) => ({
+      page.posts.map((post: any) => ({
         id: post.id,
         author: {
           id: post.author.id,
@@ -80,30 +79,34 @@ export function Feed() {
         post_likes: post.post_likes || [],
         comments: post.comments?.[0]?.count || 0,
         postTags: post.post_tags || [],
-      }));
+      }))
+    );
+  }, [data?.pages]);
 
-      if (page === 0) {
-        setPosts(formatted); // reset when tab changes
-      } else {
-        setPosts((prev) => [...prev, ...formatted]);
-      }
-    }
-  }, [postsData, page]);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (page === 0) {
-      // only show loader on first page
-      setLoading(isLoading);
-    }
-  }, [isLoading, page]);
+    if (!loadMoreRef.current) return;
 
-  const handleLoadMore = () => {
-    setPage((prev) => prev + 1);
-  };
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 1 }
+    );
+
+    observer.observe(loadMoreRef.current);
+
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (loadMoreRef.current) observer.unobserve(loadMoreRef.current);
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value as typeof activeTab);
-    setPage(0); // reset pagination
   };
 
   return (
@@ -204,7 +207,8 @@ export function Feed() {
 
         {["recent", "my-groups", "following", "popular"].map((tab) => (
           <TabsContent key={tab} value={tab} className="space-y-4 mt-6">
-            {!loading && posts && posts.length > 0 ? (
+            {posts &&
+              posts.length > 0 &&
               posts.map((post) => (
                 <PostCard
                   key={post.id}
@@ -213,28 +217,29 @@ export function Feed() {
                   onDelete={refetch as never}
                   isGroup={false}
                 />
-              ))
-            ) : loading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="animate-spin" />
-              </div>
-            ) : (
-              !posts && (
-                <Card className="p-8 text-center">
-                  <p className="text-muted-foreground">No posts to show yet.</p>
-                </Card>
-              )
-            )}
+              ))}
           </TabsContent>
         ))}
       </Tabs>
 
+      {isLoading ? (
+        <div className="flex items-center justify-center">
+          <Loader2 className="animate-spin" />
+        </div>
+      ) : (
+        !posts && (
+          <Card className="p-8 text-center">
+            <p className="text-muted-foreground">No posts to show yet.</p>
+          </Card>
+        )
+      )}
       {/* Load More */}
-      {posts && posts.length > 10 && (
-        <div className="text-center py-8">
-          <Button variant="outline" onClick={handleLoadMore}>
-            Load More Posts
-          </Button>
+      {hasNextPage && (
+        <div
+          ref={loadMoreRef}
+          className="h-10 flex items-center justify-center"
+        >
+          {isFetchingNextPage && <Loader2 className="animate-spin" />}
         </div>
       )}
     </div>
