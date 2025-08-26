@@ -21,7 +21,8 @@ import { ImageIcon, Send, User, X, Users, AtSign, Globe } from "lucide-react";
 import { postService } from "@/lib/supabase/service/post-service";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
 import { useUserFollowing } from "@/hooks/react-query/use-get-user-followers";
-import { useUserGroups } from "@/hooks/react-query/use-get-user-groups";
+import { useUserGroups } from "@/hooks/react-query/use-user-groups";
+import { useCreatePost } from "@/hooks/react-query/use-posts-service";
 
 interface CreatePostFormData {
   content: string;
@@ -62,12 +63,20 @@ CreatePostFormProps) {
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [tagQuery, setTagQuery] = useState("");
 
-  const { data: UserGroups } = useUserGroups(user?.user.id as string);
+  const { data: UserGroups } = useUserGroups(user?.user.id as string, 10, true);
 
-  const userGroups = UserGroups?.map((item) => ({
-    id: item.group.id,
-    name: item.group.name,
-  }));
+  const userGroups =
+    UserGroups?.pages
+      ?.flatMap((page) => page.data) // flatten across all pages
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        type: item.type,
+        imageUrl: item.image_url,
+        createdAt: item.created_at,
+        createdBy: item.creator_id,
+      })) || [];
 
   const { data } = useUserFollowing(user?.user.id);
 
@@ -126,71 +135,24 @@ CreatePostFormProps) {
     setTaggedUsers((prev) => prev.filter((u) => u.id !== userId));
   };
 
-  const onSubmit = async (data: CreatePostFormData) => {
-    setIsLoading(true);
+  const { mutate: createPost, isPending } = useCreatePost({
+    user,
+    selectedFiles,
+    selectedGroupId,
+    taggedUsers,
+    reset,
+    setImagePreviews,
+    setSelectedFiles,
+    setSelectedGroupId,
+    setTaggedUsers,
+    setShowTagSuggestions,
+    setTagQuery,
+    refetch,
+    onPostCreated,
+  });
 
-    try {
-      const currentUserId = user?.user.id || "";
-
-      // 1. First, create a post without images (to get postId)
-      const { data: createdPost, error: postError } =
-        await postService.createPost({
-          content: data.content,
-          author_id: currentUserId,
-          group_id:
-            selectedGroupId !== "your-timeline" ? selectedGroupId : undefined,
-        });
-
-      if (postError || !createdPost) {
-        console.error("Error creating post:", postError);
-        return;
-      }
-
-      // 2. Upload images to storage
-      const uploadedKeys: string[] = [];
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const fileKey = await postService.uploadPostImage(
-          selectedFiles[i],
-          createdPost.id,
-          i
-        );
-        uploadedKeys.push(fileKey);
-      }
-
-      // 3. Update post with uploaded image keys
-      if (uploadedKeys.length > 0) {
-        await postService.updatePost(createdPost.id, { images: uploadedKeys });
-      }
-
-      // 4. Add post tags if any
-      if (taggedUsers.length > 0) {
-        const taggedIds = taggedUsers.map((u) => u.id);
-        await postService.addPostTags(createdPost.id, taggedIds);
-      }
-
-      // 5. Refetch the full post
-      const { data: fullPost } = await postService.updatePost(
-        createdPost.id,
-        {}
-      );
-
-      // 6. Notify parent
-      onPostCreated(fullPost || createdPost);
-
-      // 7. Reset
-      reset();
-      setImagePreviews([]);
-      setSelectedFiles([]);
-      setSelectedGroupId("");
-      setTaggedUsers([]);
-      setShowTagSuggestions(false);
-      setTagQuery("");
-      refetch();
-    } catch (error) {
-      console.error("Error creating post:", error);
-    } finally {
-      setIsLoading(false);
-    }
+  const onSubmit = (data: CreatePostFormData) => {
+    createPost(data);
   };
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -419,8 +381,8 @@ CreatePostFormProps) {
               />
             </div>
 
-            <Button type="submit" disabled={isLoading} size="sm">
-              {isLoading ? (
+            <Button type="submit" disabled={isPending} size="sm">
+              {isPending ? (
                 "Posting..."
               ) : (
                 <>

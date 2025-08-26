@@ -109,6 +109,7 @@ export const postService = {
   },
   // Get all posts with pagination
   // Get all posts with pagination and filtering
+
   async getPosts(
     page = 0,
     limit = 10,
@@ -117,38 +118,32 @@ export const postService = {
   ) {
     let query = supabase.from("posts").select(
       `
-      *,
-      author:users!author_id(id, first_name, username, last_name, avatar_url, genotype, country),
-      group:groups(id, name, type),
-      post_likes(user_id),
-      comments(count),
-      post_tags(tagged_user:users!tagged_user_id(id, first_name, last_name, username))
-    `
+    *,
+    author:users!author_id(id, first_name, username, last_name, avatar_url, genotype, country),
+    group:groups(id, name, type),
+    post_likes(user_id),
+    comments(count),
+    post_tags(tagged_user:users!tagged_user_id(id, first_name, last_name, username))
+  `
     );
 
-    // ✅ Filtering
+    // ✅ filtering logic (unchanged)
     if (filter === "my-groups" && userId) {
-      // Fetch group IDs for the user first
       const { data: groupMembers, error: groupError } = await supabase
         .from("group_members")
         .select("group_id")
         .eq("user_id", userId);
-
       if (groupError) throw groupError;
-
       const groupIds = groupMembers?.map((gm) => gm.group_id) ?? [];
       query = query.in("group_id", groupIds);
     }
 
     if (filter === "following" && userId) {
-      // Fetch following IDs for the user first
       const { data: followingRows, error: followingError } = await supabase
         .from("user_follows")
         .select("following_id")
         .eq("follower_id", userId);
-
       if (followingError) throw followingError;
-
       const followingIds = followingRows?.map((row) => row.following_id) ?? [];
       query = query.in("author_id", followingIds);
     }
@@ -159,12 +154,13 @@ export const postService = {
       query = query.order("created_at", { ascending: false });
     }
 
-    // ✅ Pagination
+    // ✅ pagination
     query = query.range(page * limit, (page + 1) * limit - 1);
 
     const { data, error } = await query;
+    if (error) return { data: [], error, hasMore: false };
 
-    // ✅ Add avatar preview for each author
+    // ✅ avatar previews
     const postsWithAvatars = await Promise.all(
       (data ?? []).map(async (post) => {
         let avatar_preview = null;
@@ -182,7 +178,13 @@ export const postService = {
         };
       })
     );
-    return { data: postsWithAvatars, error: error };
+
+    // ✅ if we got `limit` items, assume there might be more
+    return {
+      data: postsWithAvatars,
+      error: null,
+      hasMore: (data?.length ?? 0) === limit,
+    };
   },
   // Create new post
   async createPost(post: CreatePost) {
@@ -388,5 +390,62 @@ export const postService = {
       .single();
 
     return { data, error };
+  },
+
+  // Get all posts by a specific user (with total count in one query)
+  async getUserPosts(userId: string, page = 0, limit = 10) {
+    const { data, error, count } = await supabase
+      .from("posts")
+      .select(
+        `
+        *,
+        author:users!author_id(
+          id,
+          first_name,
+          username,
+          last_name,
+          avatar_url,
+          genotype,
+          country
+        ),
+        group:groups(id, name, type),
+        post_likes(user_id),
+        comments(count),
+        post_tags(
+          tagged_user:users!tagged_user_id(id, first_name, last_name, username)
+        )
+      `,
+        { count: "exact" } // ✅ also return total count
+      )
+      .eq("author_id", userId)
+      .order("created_at", { ascending: false })
+      .range(page * limit, (page + 1) * limit - 1);
+
+    if (error) return { data: null, count: 0, error };
+
+    // ✅ Add avatar previews
+    const postsWithAvatars = await Promise.all(
+      (data ?? []).map(async (post) => {
+        let avatar_preview = null;
+        if (post.author?.avatar_url) {
+          try {
+            avatar_preview = await authService.getAvatarUrl(
+              post.author.avatar_url
+            );
+          } catch {
+            avatar_preview = null;
+          }
+        }
+        return {
+          ...post,
+          author: {
+            ...post.author,
+            avatar_preview,
+          },
+        };
+      })
+    );
+
+    return { data: postsWithAvatars, count: count ?? 0, error: null };
   },
 };

@@ -33,67 +33,126 @@ export const groupService = {
   },
 
   // Get all groups
-  async getGroups(page = 0, limit = 10, type?: "country" | "theme") {
-    let query = supabase.from("groups").select(
-      `
-      *,
-      creator:users!created_by(id, first_name, last_name, username, avatar_url),
-      group_members!group_members_group_id_fkey(
-        user:users!group_members_user_id_fkey(
-          id, first_name, last_name, username, avatar_url, genotype, country
-        ),
-        joined_at
-      )
-    `
-    );
 
-    // ✅ Filtering
-    if (type) {
-      query = query.eq("type", type);
-    }
-
-    // ✅ Ordering
-    query = query.order("created_at", { ascending: false });
-
-    // ✅ Pagination
-    query = query.range(page * limit, (page + 1) * limit - 1);
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("getGroups error:", error);
-      return { data: null, error };
-    }
-
-    // ✅ Convert storage key to signed URL
-    const groupsWithImages = await Promise.all(
+  async getGroups(
+    page = 0,
+    limit = 10,
+    type?: "country" | "theme" | "joined",
+    search?: string,
+    userId?: string
+  ) {
+    try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (data ?? []).map(async (group: any) => {
-        const image_url = group.image_url
-          ? await this.getGroupImageUrl(group.image_url)
-          : null;
-        return { ...group, image_url };
-      })
-    );
+      let data: any[] = [];
+      let count = 0;
 
-    return { data: groupsWithImages, error: null };
+      // ✅ Joined groups: query via group_members
+      if (type === "joined") {
+        if (!userId) return { data: [], count: 0, error: null };
+
+        const {
+          data: userGroups,
+          count: joinedCount,
+          error,
+        } = await supabase
+          .from("group_members")
+          .select(
+            `
+          group:groups(
+            *,
+            creator:users!created_by(id, first_name, last_name, username, avatar_url),
+            group_members!group_members_group_id_fkey(
+              user:users!group_members_user_id_fkey(
+                id, first_name, last_name, username, avatar_url, genotype, country
+              ),
+              joined_at
+            )
+          )
+        `,
+            { count: "exact" }
+          )
+          .eq("user_id", userId)
+          .order("joined_at", { ascending: false })
+          .range(page * limit, (page + 1) * limit - 1);
+
+        if (error) throw error;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data = userGroups?.map((gm: any) => gm.group) ?? [];
+        count = joinedCount ?? 0;
+      }
+      // ✅ Country or theme: query groups table
+      else {
+        let query = supabase.from("groups").select(
+          `
+        *,
+        creator:users!created_by(id, first_name, last_name, username, avatar_url),
+        group_members!group_members_group_id_fkey(
+          user:users!group_members_user_id_fkey(
+            id, first_name, last_name, username, avatar_url, genotype, country
+          ),
+          joined_at
+        )
+      `,
+          { count: "exact" }
+        );
+
+        if (type === "country" || type === "theme") {
+          query = query.eq("type", type);
+        }
+
+        if (search) {
+          query = query.or(
+            `name.ilike.%${search}%,description.ilike.%${search}%`
+          );
+        }
+
+        query = query
+          .order("created_at", { ascending: false })
+          .range(page * limit, (page + 1) * limit - 1);
+
+        const { data: groupsData, error, count: groupsCount } = await query;
+
+        if (error) throw error;
+
+        data = groupsData ?? [];
+        count = groupsCount ?? 0;
+      }
+
+      // ✅ Add signed images
+      const groupsWithImages = await Promise.all(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data.map(async (group: any) => {
+          const image_url = group.image_url
+            ? await this.getGroupImageUrl(group.image_url)
+            : null;
+          return { ...group, image_url };
+        })
+      );
+
+      return { data: groupsWithImages, count, error: null };
+    } catch (err) {
+      console.error("getGroups error:", err);
+      return { data: null, count: 0, error: err };
+    }
   },
-
   // Get single group
+
   async getGroup(groupId: string) {
     const { data, error } = await supabase
       .from("groups")
       .select(
         `
-    *,
-    creator:users!created_by(id, first_name, last_name, username, avatar_url),
-    group_members(
-      user:users!group_members_user_id_fkey(
-        id, first_name, last_name, avatar_url, username, genotype, country
-      ),
-      joined_at
-    )
-    `
+        *,
+        creator:users!created_by(id, first_name, last_name, username, avatar_url),
+        group_members(
+          user:users!group_members_user_id_fkey(
+            id, first_name, last_name, avatar_url, username, genotype, country
+          ),
+          joined_at
+        ),
+        members_count:group_members(count)
+      `
       )
       .eq("id", groupId)
       .single();
@@ -105,7 +164,15 @@ export const groupService = {
       ? await this.getGroupImageUrl(data.image_url)
       : null;
 
-    return { data: { ...data, image_url }, error: null };
+    // merge in dynamic member_count
+    return {
+      data: {
+        ...data,
+        image_url,
+        member_count: data.members_count?.[0]?.count ?? 0, // use aggregate count
+      },
+      error: null,
+    };
   },
   // Create group
   async createGroup(group: CreateGroup) {
@@ -139,18 +206,44 @@ export const groupService = {
     return { error };
   },
 
-  // Get user's groups
-  async getUserGroups(userId: string) {
-    const { data, error } = await supabase
+  // Get user's groups with pagination + total count
+  // Get user's groups with pagination OR all
+
+  async getUserGroups(userId: string, page = 0, limit = 10, fetchAll = false) {
+    let query = supabase
       .from("group_members")
       .select(
         `
-        group:groups(*)
+        group:groups(
+          *,
+          members:group_members(count)
+        )
       `
       )
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .order("joined_at", { ascending: false });
 
-    return { data, error };
+    if (!fetchAll) {
+      query = query.range(page * limit, (page + 1) * limit - 1);
+    }
+
+    const { data, error } = await query;
+
+    if (error) return { data: null, count: 0, error };
+
+    // Map groups with dynamic member count
+    const groups =
+      data?.map((gm) => ({
+        ...gm.group,
+        //@ts-expect-error - no type
+        member_count: gm.group.members[0]?.count ?? 0, // Supabase wraps count in array
+      })) ?? [];
+
+    return {
+      data: groups,
+      count: groups.length, // total groups this user is in
+      error: null,
+    };
   },
 
   // Check if user belongs to a group
