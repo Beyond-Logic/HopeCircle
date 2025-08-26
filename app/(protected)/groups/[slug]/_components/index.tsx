@@ -178,7 +178,7 @@ export function GroupDetail() {
               <div className="flex items-center gap-4 text-muted-foreground text-xs mb-4">
                 <div className="flex items-center gap-1">
                   <Users className="w-4 h-4" />
-                  <span>{group.group_members.length} members</span>
+                  <span>{group.member_count} members</span>
                 </div>
                 <span>
                   Created {new Date(group.created_at).toLocaleDateString()}

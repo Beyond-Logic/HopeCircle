@@ -89,7 +89,7 @@ export function Profile() {
     );
   }, [userPosts?.pages]);
 
-  const postCount = userPosts?.pages?.[0].count;
+  const postCount = userPosts?.pages?.[0].count ?? 0;
 
   const [isFollowLoading, setIsFollowLoading] = useState(false);
 
@@ -102,7 +102,7 @@ export function Profile() {
     fetchNextPage: fetchNextGroupPage,
     hasNextPage: hasMoreGroups,
     isFetchingNextPage: isFetchingMoreGroups,
-  } = useUserGroups(profileData?.profile?.id as string, 10);
+  } = useUserGroups(profileData?.user?.id as string, 10);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const groups: any[] = useMemo(() => {
@@ -111,6 +111,8 @@ export function Profile() {
   }, [userGroups?.pages]);
 
   const groupCount = userGroups?.pages?.[0]?.count ?? 0;
+
+  console.log("groups in profile", groups)
 
   // const error = isMe ? errorCurrentUser : errorOtherUser;
 
@@ -285,16 +287,18 @@ export function Profile() {
                 </div>
               </div>
 
-              <div className="flex gap-6 mt-4">
-                <div className="text-center">
-                  <div className="text-xl font-bold">{postCount}</div>
-                  <div className="text-sm text-muted-foreground">Posts</div>
+              {!isUserGroupsLoading && !isUserPostsLoading && (
+                <div className="flex gap-6 mt-4">
+                  <div className="text-center">
+                    <div className="text-xl font-bold">{postCount}</div>
+                    <div className="text-sm text-muted-foreground">Posts</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold">{groupCount}</div>
+                    <div className="text-sm text-muted-foreground">Groups</div>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold">{groupCount}</div>
-                  <div className="text-sm text-muted-foreground">Groups</div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </CardContent>

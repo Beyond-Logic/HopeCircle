@@ -137,20 +137,22 @@ export const groupService = {
     }
   },
   // Get single group
+
   async getGroup(groupId: string) {
     const { data, error } = await supabase
       .from("groups")
       .select(
         `
-    *,
-    creator:users!created_by(id, first_name, last_name, username, avatar_url),
-    group_members(
-      user:users!group_members_user_id_fkey(
-        id, first_name, last_name, avatar_url, username, genotype, country
-      ),
-      joined_at
-    )
-    `
+        *,
+        creator:users!created_by(id, first_name, last_name, username, avatar_url),
+        group_members(
+          user:users!group_members_user_id_fkey(
+            id, first_name, last_name, avatar_url, username, genotype, country
+          ),
+          joined_at
+        ),
+        members_count:group_members(count)
+      `
       )
       .eq("id", groupId)
       .single();
@@ -162,7 +164,15 @@ export const groupService = {
       ? await this.getGroupImageUrl(data.image_url)
       : null;
 
-    return { data: { ...data, image_url }, error: null };
+    // merge in dynamic member_count
+    return {
+      data: {
+        ...data,
+        image_url,
+        member_count: data.members_count?.[0]?.count ?? 0, // use aggregate count
+      },
+      error: null,
+    };
   },
   // Create group
   async createGroup(group: CreateGroup) {
@@ -204,9 +214,11 @@ export const groupService = {
       .from("group_members")
       .select(
         `
-      group:groups(*)
-    `,
-        { count: "exact" } // ✅ always return total count
+        group:groups(
+          *,
+          members:group_members(count)
+        )
+      `
       )
       .eq("user_id", userId)
       .order("joined_at", { ascending: false });
@@ -215,14 +227,25 @@ export const groupService = {
       query = query.range(page * limit, (page + 1) * limit - 1);
     }
 
-    const { data, error, count } = await query;
+    const { data, error } = await query;
 
     if (error) return { data: null, count: 0, error };
 
-    const groups = data?.map((gm) => gm.group) ?? [];
+    // Map groups with dynamic member count
+    const groups =
+      data?.map((gm) => ({
+        ...gm.group,
+        //@ts-expect-error - no type
+        member_count: gm.group.members[0]?.count ?? 0, // Supabase wraps count in array
+      })) ?? [];
 
-    return { data: groups, count: count ?? 0, error: null };
+    return {
+      data: groups,
+      count: groups.length, // total groups this user is in
+      error: null,
+    };
   },
+
   // Check if user belongs to a group
   async isUserInGroup(groupId: string, userId: string) {
     const { count, error } = await supabase

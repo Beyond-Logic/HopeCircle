@@ -24,14 +24,14 @@ export const useJoinGroup = () => {
         if (error) throw error;
       }
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       // ✅ Invalidate queries so UI updates
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       queryClient.invalidateQueries({
         queryKey: ["userGroups"],
       });
       queryClient.invalidateQueries({
-        queryKey: ["isUserInGroup", variables.groupId, variables.userId],
+        queryKey: ["isUserInGroup"],
       });
     },
     onError: (err) => {
