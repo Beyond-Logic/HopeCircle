@@ -63,25 +63,20 @@ CreatePostFormProps) {
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [tagQuery, setTagQuery] = useState("");
 
-  const { data: UserGroups } = useUserGroups(
-    user?.user.id as string,
-    0,
-    10,
-    true
-  );
+  const { data: UserGroups } = useUserGroups(user?.user.id as string, 10, true);
 
   const userGroups =
-    UserGroups?.data?.map((item) => ({
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      type: item.type,
-      imageUrl: item.image_url,
-      memberCount: item.member_count,
-      featured: item.featured,
-      createdAt: item.created_at,
-      createdBy: item.created_by,
-    })) || [];
+    UserGroups?.pages
+      ?.flatMap((page) => page.data) // flatten across all pages
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        type: item.type,
+        imageUrl: item.image_url,
+        createdAt: item.created_at,
+        createdBy: item.creator_id,
+      })) || [];
 
   const { data } = useUserFollowing(user?.user.id);
 
@@ -140,7 +135,6 @@ CreatePostFormProps) {
     setTaggedUsers((prev) => prev.filter((u) => u.id !== userId));
   };
 
-
   const { mutate: createPost, isPending } = useCreatePost({
     user,
     selectedFiles,
@@ -156,7 +150,6 @@ CreatePostFormProps) {
     refetch,
     onPostCreated,
   });
-
 
   const onSubmit = (data: CreatePostFormData) => {
     createPost(data);

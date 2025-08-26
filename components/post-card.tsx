@@ -55,7 +55,6 @@ import {
 import { useUpdateComment } from "@/hooks/react-query/use-update-comment";
 import { useLikePost, useUnlikePost } from "@/hooks/react-query/use-like-post";
 import ConfirmDeletePostModal from "./ui/confirm-delete-post-modal";
-import { commentService } from "@/lib/supabase/service/comment-service";
 import ConfirmReportModal from "./ui/confirmation-report-post-modal";
 import { useSearchParams } from "next/navigation";
 import { authService } from "@/lib/supabase/service/auth-service";
@@ -160,18 +159,13 @@ PostCardProps) {
   const [open1, setOpen1] = useState(false);
   const [open2, setOpen2] = useState(false);
   const [open3, setOpen3] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   const { data: isMember } = useIsUserInGroup(
     post?.group?.id as string,
     user?.user.id as string
   );
 
-  const {
-    data: commentsData,
-
-    refetch: refetchComments,
-  } = useComments(post.id);
+  const { data: commentsData } = useComments(post.id);
 
   const comments = commentsData?.data || [];
 
@@ -507,20 +501,20 @@ PostCardProps) {
     setEditCommentText("");
   };
 
-  const { data: UserGroups } = useUserGroups(currentUserId, 0, 10, true);
+  const { data: UserGroups } = useUserGroups(currentUserId, 10, true);
 
   const userGroups =
-    UserGroups?.data?.map((item) => ({
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      type: item.type,
-      imageUrl: item.image_url,
-      memberCount: item.member_count,
-      featured: item.featured,
-      createdAt: item.created_at,
-      createdBy: item.created_by,
-    })) || [];
+    UserGroups?.pages
+      ?.flatMap((page) => page.data) // flatten across all pages
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        type: item.type,
+        imageUrl: item.image_url,
+        createdAt: item.created_at,
+        createdBy: item.creator_id,
+      })) || [];
 
   const { data: followed } = useUserFollowers(user?.user.id);
 
@@ -893,7 +887,7 @@ PostCardProps) {
                 </div>
               </div>
             ) : (
-             <PostContent content={post.content}/>
+              <PostContent content={post.content} />
             )}
 
             {post.taggedUsers && post.taggedUsers.length > 0 && (
