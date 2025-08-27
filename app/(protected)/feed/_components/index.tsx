@@ -227,7 +227,7 @@ export function Feed() {
           <Loader2 className="animate-spin" />
         </div>
       ) : (
-        !posts && (
+        !isLoading && posts?.length === 0 && (
           <Card className="p-8 text-center">
             <p className="text-muted-foreground">No posts to show yet.</p>
           </Card>

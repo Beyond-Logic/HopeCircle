@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ImageIcon, Send, User, X, Users, AtSign, Globe } from "lucide-react";
-import { postService } from "@/lib/supabase/service/post-service";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
 import { useUserFollowing } from "@/hooks/react-query/use-get-user-followers";
 import { useUserGroups } from "@/hooks/react-query/use-user-groups";
@@ -45,7 +44,6 @@ export function CreatePostForm({
 }: // groupName,
 CreatePostFormProps) {
   const { data: user, refetch } = useCurrentUserProfile();
-  const [isLoading, setIsLoading] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
@@ -212,7 +210,7 @@ CreatePostFormProps) {
           <div className="flex gap-6">
             <Avatar className="w-10 h-10 flex-shrink-0 mt-2">
               <AvatarImage
-                src={profilePreview || `/placeholder.svg?height=40&width=40`}
+                src={profilePreview}
                 alt="Your avatar"
               />
               <AvatarFallback>

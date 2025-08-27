@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS public.comments (
   content TEXT NOT NULL,
   parent_comment_id UUID REFERENCES public.comments(id) ON DELETE CASCADE,
   likes_count INTEGER DEFAULT 0,
+  reports_count INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

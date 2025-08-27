@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS public.groups (
   member_count INTEGER DEFAULT 0,
   featured BOOLEAN DEFAULT false,
   created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -22,11 +23,19 @@ CREATE INDEX IF NOT EXISTS idx_groups_created_by ON public.groups(created_by);
 ALTER TABLE public.groups ENABLE ROW LEVEL SECURITY;
 
 -- Create policies
-CREATE POLICY "Anyone can view groups" ON public.groups
-  FOR SELECT USING (true);
 
+-- Only authenticated users can view groups
+CREATE POLICY "Authenticated users can view groups"
+  ON public.groups
+  FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+-- Only authenticated users can create groups
 CREATE POLICY "Authenticated users can create groups" ON public.groups
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
+-- Only the group creator can update their group
 CREATE POLICY "Group creators can update their groups" ON public.groups
   FOR UPDATE USING (auth.uid() = created_by);
+
+

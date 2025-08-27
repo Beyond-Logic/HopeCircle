@@ -50,8 +50,7 @@ export function Groups() {
 
   const [loadingGroupId, setLoadingGroupId] = useState<string | null>(null);
 
-    console.log("groups", groups);
-
+  console.log("groups", groups);
 
   const handleJoinGroup = async (groupId: string) => {
     if (!user?.user.id) return;
@@ -148,6 +147,7 @@ export function Groups() {
                 isLoading={isLoading}
                 setActiveTab={setActiveTab}
                 setSearchQuery={setSearchQuery}
+                activeTab={activeTab}
               />
             </TabsContent>
           )}
@@ -178,11 +178,13 @@ interface GroupGridProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     group_members?: Array<any>;
     image_url?: string;
+    created_by?:string
   }>;
   onJoinGroup: (groupId: string) => void;
   loadingGroupId: string;
   userId: string;
   isLoading: boolean;
+  activeTab: "all" | "joined" | "country" | "theme";
   setActiveTab: (tab: "all" | "joined" | "country" | "theme") => void;
   setSearchQuery: (query: string) => void;
 }
@@ -193,6 +195,7 @@ function GroupGrid({
   loadingGroupId,
   userId,
   isLoading,
+  activeTab,
   setActiveTab,
   setSearchQuery,
 }: GroupGridProps) {
@@ -219,7 +222,10 @@ function GroupGrid({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {groups.map((group) => {
+      {(activeTab === "joined"
+        ? groups.filter((group) => group.created_by !== userId)
+        : groups
+      ).map((group) => {
         const isJoined = group.group_members?.some(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (member: any) => member.user?.id === userId
@@ -227,7 +233,15 @@ function GroupGrid({
 
         // Assign a background color based on group type
         const bgColor =
-          group.type === "country" ? "bg-blue-500" : "bg-pink-500"; // you can add more types/colors
+          group.type === "country"
+            ? "bg-primary/20 text-primary"
+            : "bg-secondary/20 text-secondary";
+
+        // Softer badge colors
+        const badgeBg =
+          group.type === "country"
+            ? "bg-primary/10 text-primary"
+            : "bg-secondary/10 text-secondary";
 
         return (
           <Card
@@ -236,25 +250,31 @@ function GroupGrid({
           >
             <div className="aspect-video h-[200px] relative flex items-center justify-center">
               {group.image_url ? (
-                <img
-                  src={group.image_url}
-                  alt={group.name}
+                <Link
+                  href={`/groups/${group.id}`}
                   className="w-full h-full object-cover"
-                />
-              ) : (
-                <div
-                  className={`w-full h-[200px] l ${bgColor} flex items-center justify-center`}
                 >
-                  <span className="text-white font-semibold text-lg">
-                    {/* {group.name.charAt(0)} */}
-                  </span>
-                </div>
+                  <img
+                    src={group.image_url}
+                    alt={group.name}
+                    className="w-full h-full object-cover"
+                  />
+                </Link>
+              ) : (
+                <Link
+                  href={`/groups/${group.id}`}
+                  className="w-full h-full object-cover"
+                >
+                  <div
+                    className={`w-full h-[200px] ${bgColor} flex items-center justify-center`}
+                  >
+                    <span className="text-white font-semibold text-lg"></span>
+                  </div>
+                </Link>
               )}
 
               <div className="absolute top-3 right-3">
-                <Badge
-                  variant={group.type === "country" ? "default" : "secondary"}
-                >
+                <Badge className={`${badgeBg} px-2 py-1 rounded`}>
                   {group.type === "country" ? (
                     <MapPin className="w-3 h-3 mr-1" />
                   ) : (
@@ -265,12 +285,14 @@ function GroupGrid({
               </div>
             </div>
 
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">{group.name}</CardTitle>
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {group.description}
-              </p>
-            </CardHeader>
+            <Link href={`/groups/${group.id}`}>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">{group.name}</CardTitle>
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {group.description}
+                </p>
+              </CardHeader>
+            </Link>
 
             <CardContent className="pt-0">
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
@@ -287,8 +309,6 @@ function GroupGrid({
               <div className="flex gap-2">
                 {isJoined ? (
                   <>
-                    {/* Main Enter button */}
-
                     <Button
                       size="sm"
                       variant="outline"
@@ -298,7 +318,6 @@ function GroupGrid({
                       <Link href={`/groups/${group.id}`}>Enter</Link>
                     </Button>
 
-                    {/* Small Leave icon */}
                     <Button
                       variant="outline"
                       size="sm"
