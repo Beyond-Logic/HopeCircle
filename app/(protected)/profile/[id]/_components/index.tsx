@@ -322,7 +322,7 @@ export function Profile() {
               <Loader2 className="animate-spin" />
             </div>
           ) : (
-            !posts && (
+            posts.length === 0 && (
               <Card>
                 <CardContent className="p-12 text-center">
                   <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -352,35 +352,42 @@ export function Profile() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {groups &&
               groups.length > 0 &&
-              groups.map((group) => {
-                const isAdmin = group.created_by === profileData.user.id;
+              // Sort groups: admin groups first
+              [...groups]
+                .sort((a, b) => {
+                  const aIsAdmin = a.created_by === profileData.user.id ? 1 : 0;
+                  const bIsAdmin = b.created_by === profileData.user.id ? 1 : 0;
+                  return bIsAdmin - aIsAdmin; // admin first
+                })
+                .map((group) => {
+                  const isAdmin = group.created_by === profileData.user.id;
 
-                return (
-                  <Card key={group.id} className="relative">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold">{group.name}</h3>
+                  return (
+                    <Card key={group.id} className="relative">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-semibold">{group.name}</h3>
 
-                          <p className="text-sm text-muted-foreground">
-                            {group.member_count.toLocaleString()} members
-                          </p>
+                            <p className="text-sm text-muted-foreground">
+                              {group.member_count.toLocaleString()} members
+                            </p>
+                          </div>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/groups/${group.id}`}>View</Link>
+                          </Button>
                         </div>
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/groups/${group.id}`}>View</Link>
-                        </Button>
-                      </div>
-                      <div className="absolute -top-1 right-0">
-                        {isAdmin && (
-                          <Badge className="bg-amber-400 text-black rounded-lg">
-                            Admin
-                          </Badge>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                        <div className="absolute -top-1 right-0">
+                          {isAdmin && (
+                            <Badge className="bg-amber-400 text-black rounded-lg">
+                              Admin
+                            </Badge>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
           </div>
 
           {isUserGroupsLoading ? (
@@ -395,13 +402,14 @@ export function Profile() {
                   <h3 className="text-lg font-semibold mb-2">No groups yet</h3>
                   <p className="text-muted-foreground">
                     {user
-                      ? "Create your first group!"
-                      : "This user hasn't joined any group yet."}
+                      ? "Create your first group or join a group!"
+                      : "This user hasn't joined or created any group yet."}
                   </p>
                 </CardContent>
               </Card>
             )
           )}
+
           {/* Load More */}
           {hasMoreGroups && (
             <div className="text-center py-8">

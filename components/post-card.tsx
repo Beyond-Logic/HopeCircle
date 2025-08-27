@@ -1061,18 +1061,20 @@ PostCardProps) {
 
                     return (
                       <div key={comment.id} className="flex gap-3 relative">
-                        <Avatar className="w-8 h-8 flex-shrink-0">
-                          <AvatarImage
-                            src={
-                              comment.author.avatar_preview ||
-                              "/placeholder.svg?height=32&width=32"
-                            }
-                            alt="Your avatar"
-                          />
-                          <AvatarFallback>
-                            <User className="w-4 h-4" />
-                          </AvatarFallback>
-                        </Avatar>
+                        <Link href={`/profile/${comment.author.username}`}>
+                          <Avatar className="w-8 h-8 flex-shrink-0">
+                            <AvatarImage
+                              src={
+                                comment.author.avatar_preview ||
+                                "/placeholder.svg?height=32&width=32"
+                              }
+                              alt="Your avatar"
+                            />
+                            <AvatarFallback>
+                              <User className="w-4 h-4" />
+                            </AvatarFallback>
+                          </Avatar>
+                        </Link>
                         <div className="flex items-start justify-between mb-3 w-full">
                           <div className="flex-1">
                             {/* Edit mode */}
@@ -1219,18 +1221,23 @@ PostCardProps) {
                                         key={reply.id}
                                         className="flex gap-3"
                                       >
-                                        <Avatar className="w-6 h-6 flex-shrink-0">
-                                          <AvatarImage
-                                            src={
-                                              reply.author.avatar_preview ||
-                                              "/placeholder.svg?height=32&width=32"
-                                            }
-                                            alt="Your avatar"
-                                          />
-                                          <AvatarFallback>
-                                            <User className="w-3 h-3" />
-                                          </AvatarFallback>
-                                        </Avatar>
+                                        <Link
+                                          href={`/profile/${reply.author.username}`}
+                                        >
+                                          <Avatar className="w-6 h-6 flex-shrink-0">
+                                            <AvatarImage
+                                              src={
+                                                reply.author.avatar_preview ||
+                                                "/placeholder.svg?height=32&width=32"
+                                              }
+                                              alt="Your avatar"
+                                            />
+                                            <AvatarFallback>
+                                              <User className="w-3 h-3" />
+                                            </AvatarFallback>
+                                          </Avatar>
+                                        </Link>
+
                                         <div className="flex items-start justify-between mb-3 w-full">
                                           <div className="flex-1">
                                             {/* Edit mode for reply */}

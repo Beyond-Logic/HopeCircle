@@ -26,6 +26,7 @@ import { useIsUserInGroup } from "@/hooks/react-query/use-is-user-in-group";
 import { useGroupPosts } from "@/hooks/react-query/use-group-posts";
 import { useJoinGroup } from "@/hooks/react-query/use-join-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { authService } from "@/lib/supabase/service/auth-service";
 
 export function GroupDetail() {
   const { data: user } = useCurrentUserProfile();
@@ -36,6 +37,14 @@ export function GroupDetail() {
   const { data: group, isLoading, error } = useGetGroupById(groupId);
   const { data: isMember } = useIsUserInGroup(groupId, user?.user.id as string);
   const { mutate: joinGroupMutate, isPending } = useJoinGroup();
+
+  const [profilePreview, setProfilePreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    authService
+      .getAvatarUrl(user?.profile?.avatar_url as string)
+      .then(setProfilePreview);
+  }, [user?.profile?.avatar_url]);
 
   console.log("group in details", group);
 
@@ -101,7 +110,16 @@ export function GroupDetail() {
   const [imageError, setImageError] = useState(false);
 
   // Assign a background color based on group type
-  const bgColor = group?.type === "country" ? "bg-blue-500" : "bg-pink-500";
+  const bgColor =
+    group.type === "country"
+      ? "bg-primary/20 text-primary"
+      : "bg-secondary/20 text-secondary";
+
+  // Softer badge colors
+  const badgeBg =
+    group.type === "country"
+      ? "bg-primary/10 text-primary"
+      : "bg-secondary/10 text-secondary";
 
   if (isLoading) {
     return (
@@ -169,7 +187,7 @@ export function GroupDetail() {
           )}
 
           <div className="absolute top-4 right-4">
-            <Badge variant={group.type === "country" ? "default" : "secondary"}>
+            <Badge className={`${badgeBg} px-2 py-1 rounded`}>
               {group.type === "country" ? (
                 <MapPin className="w-3 h-3 mr-1" />
               ) : (
@@ -243,7 +261,11 @@ export function GroupDetail() {
 
         <TabsContent value="posts" className="space-y-6">
           {isMember && (
-            <CreatePostForm onPostCreated={handleNewPost} groupId={groupId} />
+            <CreatePostForm
+              onPostCreated={handleNewPost}
+              groupId={groupId}
+              profilePreview={profilePreview as string}
+            />
           )}
           {isMember && (
             <div className="space-y-4">

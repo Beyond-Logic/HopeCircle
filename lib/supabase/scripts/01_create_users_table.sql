@@ -1,6 +1,5 @@
 -- Create users table for profile information
--- Note: Authentication is handled by Supabase Auth. 
--- This table extends the auth.users table.
+-- This extends the auth.users table with additional fields.
 
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -13,7 +12,6 @@ CREATE TABLE IF NOT EXISTS public.users (
   bio TEXT,
   status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'banned', 'suspended')),
   role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('admin', 'moderator', 'user')),
-
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -22,6 +20,7 @@ CREATE TABLE IF NOT EXISTS public.users (
 CREATE INDEX IF NOT EXISTS idx_users_genotype ON public.users(genotype);
 CREATE INDEX IF NOT EXISTS idx_users_country ON public.users(country);
 CREATE INDEX IF NOT EXISTS idx_users_status ON public.users(status);
+CREATE INDEX IF NOT EXISTS idx_users_role ON public.users(role);
 
 -- Enable Row Level Security
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
@@ -45,3 +44,12 @@ CREATE POLICY "Users can insert own profile"
   ON public.users
   FOR INSERT
   WITH CHECK (auth.uid() = id);
+
+-- Only admins can update other people's roles
+CREATE POLICY "Admins can update roles"
+  ON public.users
+  FOR UPDATE
+  USING (EXISTS (
+    SELECT 1 FROM public.users u
+    WHERE u.id = auth.uid() AND u.role = 'admin'
+  ));
