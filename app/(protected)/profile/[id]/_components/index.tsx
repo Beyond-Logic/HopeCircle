@@ -112,7 +112,7 @@ export function Profile() {
 
   const groupCount = userGroups?.pages?.[0]?.count ?? 0;
 
-  console.log("groups in profile", groups)
+  console.log("groups in profile", groups);
 
   // const error = isMe ? errorCurrentUser : errorOtherUser;
 
@@ -352,23 +352,35 @@ export function Profile() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {groups &&
               groups.length > 0 &&
-              groups.map((group) => (
-                <Card key={group.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold">{group.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {group.member_count.toLocaleString()} members
-                        </p>
+              groups.map((group) => {
+                const isAdmin = group.created_by === profileData.user.id;
+
+                return (
+                  <Card key={group.id} className="relative">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold">{group.name}</h3>
+
+                          <p className="text-sm text-muted-foreground">
+                            {group.member_count.toLocaleString()} members
+                          </p>
+                        </div>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/groups/${group.id}`}>View</Link>
+                        </Button>
                       </div>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/groups/${group.id}`}>View</Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      <div className="absolute -top-1 right-0">
+                        {isAdmin && (
+                          <Badge className="bg-amber-400 text-black rounded-lg">
+                            Admin
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
           </div>
 
           {isUserGroupsLoading ? (
