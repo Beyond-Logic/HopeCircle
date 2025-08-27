@@ -31,12 +31,23 @@ export default function GroupProtectedLayout({ children }: AppLayoutProps) {
       </div>
     );
 
+  if (!group) {
+    return (
+      <div className="text-center py-12">
+        <h1 className="text-2xl font-bold mb-4">Group not found</h1>
+        <Link href="/groups">
+          <Button>Back to Groups</Button>
+        </Link>
+      </div>
+    );
+  }
+
   if (!canAccess) {
     return (
       <div className="text-center py-12">
         <h1 className="text-2xl font-bold mb-4">{group?.name}</h1>
         <h1 className="text-xl font-medium mb-4">
-          You don't have access to this group. It has been archived.
+          You don't have access to this group.
         </h1>
         <Link href={`/groups/${groupId}`}>
           <Button>Go back to groups</Button>

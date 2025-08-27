@@ -254,6 +254,7 @@ export const groupService = {
     if (error) return { data: null, error };
     return { data, error: null };
   },
+
   // Join group
   async joinGroup(groupId: string, userId: string) {
     const { data, error } = await supabase.from("group_members").insert({
@@ -381,5 +382,27 @@ export const groupService = {
     );
 
     return { data: postsWithAvatars, error: null };
+  },
+
+  async deleteGroupImage(groupId: string, fileName: string) {
+    // delete from storage
+    const { error: storageError } = await supabase.storage
+      .from("group-images")
+      .remove([fileName]);
+
+    if (storageError) throw storageError;
+
+    // clear the reference in the DB
+    const { error: dbError } = await supabase
+      .from("groups")
+      .update({
+        image_url: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", groupId);
+
+    if (dbError) throw dbError;
+
+    return { success: true };
   },
 };
