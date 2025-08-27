@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -26,14 +26,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useGetGroupById } from "@/hooks/react-query/use-group-by-id";
-import { useUpdateGroup } from "@/hooks/react-query/use-update-group";
+import { useUpdateGroupMutation } from "@/hooks/react-query/use-update-group"; // 👈 use the new hook
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
+import { useDeleteGroupImage } from "@/hooks/react-query/use-delete-group-image";
 
 interface UpdateGroupFormData {
   name: string;
   description: string;
   type: "country" | "theme" | undefined;
-  image_url?: string;
 }
 
 export function GroupSettings() {
@@ -43,51 +43,72 @@ export function GroupSettings() {
   const groupId = params.slug as string;
 
   const { data: group, isLoading } = useGetGroupById(groupId);
-  const { mutate: updateGroup, isPending } = useUpdateGroup();
+  const { mutate: updateGroup, isPending } = useUpdateGroupMutation(); // 👈 use new mutation
 
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const isEditable = group?.creator?.id === data?.user.id;
 
+  type UpdateGroupFormInputs = UpdateGroupFormData;
+
+  // 2) Add an "initial" snapshot of the group
+  const [initial, setInitial] = useState<{
+    name: string;
+    description: string;
+    type: "country" | "theme" | undefined;
+    image_url: string | null;
+  } | null>(null);
+
+  // 3) useForm without imageChanged and without relying on isDirty
   const {
     register,
     handleSubmit,
     control,
     setValue,
     reset,
-    formState: { errors, isDirty },
+    formState: { errors },
     trigger,
-  } = useForm<UpdateGroupFormData>({
-    defaultValues: {
-      name: "",
-      description: "",
-      type: undefined,
-    },
+    watch,
+  } = useForm<UpdateGroupFormInputs>({
+    defaultValues: { name: "", description: "", type: undefined },
   });
 
-  // when resetting
-  useEffect(() => {
-    if (group) {
-      reset(
-        {
-          name: group.name,
-          description: group.description,
-          type: (group.type as "country" | "theme") ?? undefined,
-        },
-        { keepDirty: false } // reset clears dirty state
-      );
-      setPreview(group?.image_url || null);
-    }
-  }, [group, reset, setValue]);
+  const { mutate: deleteGroupImage, isPending: isDeleting } =
+    useDeleteGroupImage();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-6">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-      </div>
+  useEffect(() => {
+    if (!group) return;
+
+    const snap = {
+      name: group.name ?? "",
+      description: group.description ?? "",
+      type: (group.type as "country" | "theme" | undefined) ?? undefined,
+      image_url: group.image_url ?? null,
+    };
+    setInitial(snap);
+
+    reset(
+      { name: snap.name, description: snap.description, type: snap.type },
+      { keepDirty: false }
     );
-  }
+
+    setPreview(snap.image_url || null);
+    setSelectedFile(null);
+  }, [group, reset]);
+
+  // 5) Compute hasChanges instead of using isDirty
+  const values = watch();
+  const imageChanged =
+    !!selectedFile || (!!initial?.image_url && preview === null);
+
+  const hasChanges =
+    !!initial &&
+    ((values.name ?? "") !== initial.name ||
+      (values.description ?? "") !== initial.description ||
+      (values.type ?? undefined) !== initial.type ||
+      imageChanged);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -100,21 +121,39 @@ export function GroupSettings() {
     const reader = new FileReader();
     reader.onloadend = () => setPreview(reader.result as string);
     reader.readAsDataURL(file);
-
-    // ✅ mark form dirty
-    setValue("image_url", "changed", { shouldDirty: true });
   };
 
   const handleRemoveImage = () => {
-    setPreview(null);
-    setSelectedFile(null);
+    if (selectedFile) {
+      // just undo local selection
+      setSelectedFile(null);
+      setPreview(initial?.image_url ?? null); // back to original state
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
-    // ✅ mark form dirty
-    setValue("image_url", undefined, { shouldDirty: true });
+    // deleting an existing backend image
+    if (group?.image_url) {
+      deleteGroupImage(
+        {
+          groupId,
+          fileName: group.image_url.replace(/^.*\/group-images\//, ""),
+        },
+        {
+          onSuccess: () => {
+            toast.success("Image deleted successfully!");
+            setPreview(null);
+            setSelectedFile(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            // after react-query refetch, useEffect above will reset initial snapshot
+          },
+          onError: (err) => toast.error((err as Error).message),
+        }
+      );
+    }
   };
 
-  const onSubmit = async (data: UpdateGroupFormData) => {
-    // ✅ validate required fields before submit
+  const onSubmit = async (formData: UpdateGroupFormData) => {
     const valid = await trigger(["name", "description", "type"]);
     if (!valid) return;
 
@@ -122,15 +161,13 @@ export function GroupSettings() {
       {
         groupId,
         updates: {
-          ...data,
-          type: data.type || undefined,
-          image_url: selectedFile || undefined,
+          ...formData,
+          type: formData.type || undefined,
+          imageFile: selectedFile || undefined, // 👈 just pass file
         },
       },
       {
-        onSuccess: () => {
-          toast.success("Group updated!");
-        },
+        onSuccess: () => toast.success("Group updated!"),
         onError: (err) => toast.error((err as Error).message),
       }
     );
@@ -139,18 +176,14 @@ export function GroupSettings() {
   const handleUnpublish = () => {
     updateGroup(
       { groupId, updates: { status: "inactive" } },
-      {
-        onSuccess: () => toast.success("Group unpublished."),
-      }
+      { onSuccess: () => toast.success("Group unpublished.") }
     );
   };
 
   const handleRepublish = () => {
     updateGroup(
       { groupId, updates: { status: "active" } },
-      {
-        onSuccess: () => toast.success("Group republished!"),
-      }
+      { onSuccess: () => toast.success("Group republished!") }
     );
   };
 
@@ -259,6 +292,7 @@ export function GroupSettings() {
                       title="Remove Image"
                       type="button"
                       onClick={handleRemoveImage}
+                      disabled={isDeleting}
                       className="absolute top-2 right-2 bg-white rounded-full p-1 shadow"
                     >
                       <Trash2Icon className="w-5 h-5 text-red-500" />
@@ -269,6 +303,7 @@ export function GroupSettings() {
                 isEditable && (
                   <label className="cursor-pointer">
                     <Input
+                      ref={fileInputRef}
                       type="file"
                       accept="image/*"
                       className="hidden"
@@ -288,7 +323,7 @@ export function GroupSettings() {
           {isEditable && (
             <Button
               type="submit"
-              disabled={isPending || !isDirty}
+              disabled={isPending || !hasChanges}
               className="w-full"
             >
               {isPending ? "Saving..." : "Save Changes"}
