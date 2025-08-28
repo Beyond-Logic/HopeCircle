@@ -21,6 +21,7 @@ import {
   LogOut,
   User,
   Inbox,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/authContext";
@@ -28,6 +29,7 @@ import { authService } from "@/lib/supabase/service/auth-service";
 import { useQuery } from "@tanstack/react-query";
 import { chatService } from "@/lib/supabase/service/chat-service";
 import { useEffect, useState } from "react";
+import NotificationDropdown from "../notification-dropdown";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -49,6 +51,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     enabled: !!user?.id,
     refetchInterval: 5000, // poll every 5s
   });
+  
 
   const navigation = [
     { name: "Feed", href: "/feed", icon: Home },
@@ -78,7 +81,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
       console.error("Logout error:", error);
     }
   };
-
 
   useEffect(() => {
     authService
@@ -129,77 +131,83 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </nav>
 
           {/* User Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="relative h-10 w-10 rounded-full hover:bg-primary/30"
-              >
-                <Avatar className="h-10 w-10">
-                  <AvatarImage
-                    src={profilePreview as string}
-                    alt={profile?.first_name}
-                  />
-                  <AvatarFallback className="bg-primary/10">
-                    <User className="w-5 h-5 text-primary" />
-                  </AvatarFallback>
-                </Avatar>
-                {/* {unreadCount > 0 && (
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="relative h-10 w-10 rounded-full hover:bg-primary/30"
+                >
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage
+                      src={profilePreview as string}
+                      alt={profile?.first_name}
+                    />
+                    <AvatarFallback className="bg-primary/10">
+                      <User className="w-5 h-5 text-primary" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div></div>
+
+                  {/* {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                     {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
                 )} */}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <div className="flex items-center justify-start gap-2 p-2">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage
-                    src={profilePreview as string}
-                    alt={profile?.first_name}
-                  />
-                  <AvatarFallback>
-                    <User className="w-5 h-5" />
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col space-y-1 leading-none">
-                  <p className="font-medium">
-                    {profile?.first_name} {profile?.last_name}
-                  </p>
-                  <p className="w-[200px] truncate text-sm text-muted-foreground">
-                    {user?.email}
-                  </p>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <div className="flex items-center justify-start gap-2 p-2">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage
+                      src={profilePreview as string}
+                      alt={profile?.first_name}
+                    />
+                    <AvatarFallback>
+                      <User className="w-5 h-5" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col space-y-1 leading-none">
+                    <p className="font-medium">
+                      {profile?.first_name} {profile?.last_name}
+                    </p>
+                    <p className="w-[200px] truncate text-sm text-muted-foreground">
+                      {user?.email}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link
-                  href="/profile/me"
-                  className="flex items-center cursor-pointer"
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/profile/me"
+                    className="flex items-center cursor-pointer"
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/settings"
+                    className="flex items-center cursor-pointer"
+                  >
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive cursor-pointer"
+                  onClick={handleLogout}
                 >
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link
-                  href="/settings"
-                  className="flex items-center cursor-pointer"
-                >
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive cursor-pointer"
-                onClick={handleLogout}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <NotificationDropdown />
+          </div>
         </div>
       </header>
 
