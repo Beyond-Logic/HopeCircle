@@ -14,6 +14,7 @@ import {
 } from "@/hooks/react-query/use-notification";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 export function Notifications() {
   const [activeTab, setActiveTab] = useState<"all" | "unread">("all");
@@ -151,10 +152,10 @@ export function Notifications() {
           <ScrollArea className="h-[calc(100vh-200px)]">
             <div className="space-y-4">
               {notifications.map((notification) => (
-                <div
+                <Card
                   key={notification.id}
                   className={cn(
-                    "p-4 rounded-lg border hover:bg-destructive/5",
+                    "p-4 rounded-lg border bg-transparent hover:bg-destructive/5",
                     !notification.is_read && "bg-destructive/5 border-destructive/20"
                   )}
                 >
@@ -209,7 +210,7 @@ export function Notifications() {
                       </Button>
                     </div>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           </ScrollArea>
