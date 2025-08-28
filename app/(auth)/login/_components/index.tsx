@@ -78,7 +78,7 @@ export function Login() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* Email */}
             <div>
-              <Label htmlFor="email">Email</Label>
+              {/* <Label htmlFor="email">Email</Label> */}
               <Input
                 id="email"
                 type="email"
@@ -89,7 +89,7 @@ export function Login() {
                     message: "Invalid email address",
                   },
                 })}
-                placeholder="john@example.com"
+                placeholder="Email address"
               />
               {errors.email && (
                 <p className="text-sm text-destructive mt-1">
@@ -100,7 +100,7 @@ export function Login() {
 
             {/* Password */}
             <div>
-              <Label htmlFor="password">Password</Label>
+              {/* <Label htmlFor="password">Password</Label> */}
               <div className="relative">
                 <Input
                   id="password"
@@ -108,7 +108,7 @@ export function Login() {
                   {...register("password", {
                     required: "Password is required",
                   })}
-                  placeholder="••••••••"
+                  placeholder="Password"
                 />
                 <Button
                   type="button"
