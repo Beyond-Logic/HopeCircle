@@ -97,7 +97,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
               <Heart className="w-5 h-5 text-primary" />
             </div>
-            <span className="font-bold text-xl">HopeCircle</span>
+            <span className="font-bold text-xl ml-0.5">HopeCircle</span>
           </Link>
 
           {/* Navigation */}
