@@ -188,7 +188,7 @@ export function Feed() {
             className="flex items-center gap-2 text-sm"
           >
             <Users className="w-4 h-4" />
-            <span className="hidden sm:inline">My Groups</span>
+            <span className="hidden sm:inline">Groups</span>
             <span className="sm:hidden">Groups</span>
           </TabsTrigger>
           <TabsTrigger
