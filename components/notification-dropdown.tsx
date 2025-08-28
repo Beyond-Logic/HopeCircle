@@ -207,7 +207,12 @@ const NotificationDropdown = () => {
                   {group.notifications.map((notification) => (
                     <DropdownMenuItem
                       key={notification.id}
-                      className="p-3 cursor-pointer flex flex-col items-start gap-1"
+                      // className="p-3 cursor-pointer flex flex-col items-start gap-1 border bg-transparent hover:bg-destructive/5"
+                      className={cn(
+                        "p-3 cursor-pointer flex flex-col items-start gap-1 bg-transparent hover:bg-destructive/5",
+                        !notification.is_read &&
+                          "bg-destructive/5 border-destructive/20"
+                      )}
                       onClick={() => handleMarkAsRead(notification.id)}
                       asChild
                       variant="destructive"
