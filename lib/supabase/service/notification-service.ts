@@ -1,8 +1,9 @@
 // import type { Notification, NotificationType } from "@/types/notification";
 
-import { createServiceClient } from "../server-client";
+import { createClient } from "../client";
+import { createServiceClient } from "../service-client";
 
-const supabase = createServiceClient();
+const supabase = createClient();
 
 export const notificationService = {
   async createAdminNotification(userId: string, message: string) {
