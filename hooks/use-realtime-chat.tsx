@@ -3,7 +3,10 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useCallback, useEffect, useState } from "react";
-import { chatService } from "@/lib/supabase/service/chat-service";
+import {
+  chatService,
+  FileAttachment,
+} from "@/lib/supabase/service/chat-service";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface UseRealtimeChatProps {
@@ -20,6 +23,7 @@ export interface ChatMessage {
   createdAt: string;
   receiver_id?: string; // ✅ new
   is_read?: boolean; // ✅ new
+  attachments?: FileAttachment[];
 }
 
 export function useRealtimeChat({
@@ -35,6 +39,7 @@ export function useRealtimeChat({
   const roomName = chatService.getRoomName(currentUserId, otherUserId);
 
   // 1️⃣ Fetch initial messages with React Query
+  // 1️⃣ Fetch initial messages with React Query
   const { data: messages = [] } = useQuery({
     queryKey: ["messages", roomName],
     queryFn: async () => {
@@ -47,8 +52,9 @@ export function useRealtimeChat({
           id: m.id,
           content: m.content,
           createdAt: m.created_at,
-          receiver_id: m.receiver_id, // ✅ keep for unread check
-          is_read: m.is_read, // ✅ keep for unread check
+          receiver_id: m.receiver_id,
+          is_read: m.is_read,
+          attachments: m.attachments || [],
           user: {
             name: m.sender_id === currentUserId ? username : otherUsername,
           },
@@ -69,6 +75,7 @@ export function useRealtimeChat({
           createdAt: msg.created_at,
           receiver_id: msg.receiver_id,
           is_read: msg.is_read,
+          attachments: msg.attachments || [],
           user: {
             name: msg.sender_id === currentUserId ? username : otherUsername,
           },
@@ -129,39 +136,48 @@ export function useRealtimeChat({
     return () => {
       supabase.removeChannel(subscription);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomName, currentUserId, queryClient]);
 
-  // 3️⃣ Send message
+  // 3️⃣ Send message with files
   const sendMessage = useCallback(
-    async (content: string) => {
-      if (!content.trim()) return;
+    async (content: string, files: File[] = []) => {
+      if (!content.trim() && files.length === 0) return;
 
-      const { data, error } = await chatService.sendMessage(
-        currentUserId,
-        otherUserId,
-        content
-      );
+      try {
+        const { data, error } = await chatService.sendMessage(
+          currentUserId,
+          otherUserId,
+          content,
+          files
+        );
 
-      if (error) {
-        console.error("Failed to send message:", error);
-        return;
+        if (error) {
+          console.error("Failed to send message:", error);
+          return;
+        }
+
+        // Optimistic update
+        const newMsg: ChatMessage = {
+          id: (data as any)?.[0]?.id ?? Math.random().toString(),
+          content,
+          createdAt: new Date().toISOString(),
+          attachments: (data as any)?.[0]?.attachments || [],
+          user: { name: username },
+        };
+
+        queryClient.setQueryData<ChatMessage[]>(
+          ["messages", roomName],
+          (old) => {
+            if (!old) return [newMsg];
+            if (old.some((m) => m.id === newMsg.id)) return old;
+            return [...old, newMsg];
+          }
+        );
+      } catch (error) {
+        console.error("Error sending message:", error);
+        throw error;
       }
-
-      // optimistic update
-      const newMsg: ChatMessage = {
-        id: (data as any)?.[0]?.id ?? Math.random().toString(), // fallback id
-        content,
-        createdAt: new Date().toISOString(),
-
-        user: { name: username },
-      };
-
-      queryClient.setQueryData<ChatMessage[]>(["messages", roomName], (old) => {
-        if (!old) return [newMsg];
-        if (old.some((m) => m.id === newMsg.id)) return old; // dedupe
-        return [...old, newMsg];
-      });
     },
     [currentUserId, otherUserId, username, queryClient, roomName]
   );

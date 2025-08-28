@@ -273,7 +273,7 @@ PostCardProps) {
     if (imageCount === 1) {
       return (
         <img
-          src={(images && images[0]) || "/placeholder.svg"}
+          src={images && images[0]}
           alt="Post image"
           className="mt-3 max-w-full h-auto rounded-lg border cursor-pointer"
           onClick={() => openImageCarousel(0)}
@@ -287,7 +287,7 @@ PostCardProps) {
           {images?.map((image, index) => (
             <img
               key={index}
-              src={image || "/placeholder.svg"}
+              src={image}
               alt={`Post image ${index + 1}`}
               className="w-full h-48 object-cover rounded-lg border cursor-pointer"
               onClick={() => openImageCarousel(index)}
@@ -301,7 +301,7 @@ PostCardProps) {
       return (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <img
-            src={(images && images[0]) || "/placeholder.svg"}
+            src={images && images[0]}
             alt="Post image 1"
             className="w-full h-48 object-cover rounded-lg border cursor-pointer"
             onClick={() => openImageCarousel(0)}
@@ -310,7 +310,7 @@ PostCardProps) {
             {images?.slice(1, 3).map((image, index) => (
               <img
                 key={index + 1}
-                src={image || "/placeholder.svg"}
+                src={image}
                 alt={`Post image ${index + 2}`}
                 className="w-full h-[94px] object-cover rounded-lg border cursor-pointer"
                 onClick={() => openImageCarousel(index + 1)}
@@ -326,7 +326,7 @@ PostCardProps) {
         {images?.slice(0, 4).map((image, index) => (
           <div key={index} className="relative">
             <img
-              src={image || "/placeholder.svg"}
+              src={image}
               alt={`Post image ${index + 1}`}
               className="w-full h-32 object-cover rounded-lg border cursor-pointer"
               onClick={() => openImageCarousel(index)}
@@ -589,10 +589,7 @@ PostCardProps) {
               <Link href={`/profile/${post.author.username}`}>
                 <Avatar className="w-10 h-10">
                   <AvatarImage
-                    src={
-                      post.author.avatar_preview ||
-                      "/placeholder.svg?height=40&width=40"
-                    }
+                    src={post.author.avatar_preview}
                     alt={post.author.name}
                   />
                   <AvatarFallback>
@@ -834,7 +831,7 @@ PostCardProps) {
                     {existingKeys.map((key) => (
                       <div key={key} className="relative">
                         <img
-                          src={urlByKey.get(key) || "/placeholder.svg"}
+                          src={urlByKey.get(key) as string}
                           alt="Existing"
                           className="w-full h-32 object-cover rounded-lg border"
                         />
@@ -1016,9 +1013,7 @@ PostCardProps) {
               <div className="flex gap-3">
                 <Avatar className="w-8 h-8 flex-shrink-0 mt-2">
                   <AvatarImage
-                    src={
-                      profilePreview || "/placeholder.svg?height=32&width=32"
-                    }
+                    src={profilePreview as string}
                     alt="Your avatar"
                   />
                   <AvatarFallback>
@@ -1064,10 +1059,7 @@ PostCardProps) {
                         <Link href={`/profile/${comment.author.username}`}>
                           <Avatar className="w-8 h-8 flex-shrink-0">
                             <AvatarImage
-                              src={
-                                comment.author.avatar_preview ||
-                                "/placeholder.svg?height=32&width=32"
-                              }
+                              src={comment.author.avatar_preview}
                               alt="Your avatar"
                             />
                             <AvatarFallback>
@@ -1226,10 +1218,7 @@ PostCardProps) {
                                         >
                                           <Avatar className="w-6 h-6 flex-shrink-0">
                                             <AvatarImage
-                                              src={
-                                                reply.author.avatar_preview ||
-                                                "/placeholder.svg?height=32&width=32"
-                                              }
+                                              src={reply.author.avatar_preview}
                                               alt="Your avatar"
                                             />
                                             <AvatarFallback>
@@ -1509,7 +1498,7 @@ PostCardProps) {
             {/* Current Image */}
             <div className="bg-black bg-opacity-90 flex items-center justify-center">
               <img
-                src={imageUrls[currentImageIndex] || "/placeholder.svg"}
+                src={imageUrls[currentImageIndex]}
                 alt={`Post image ${currentImageIndex + 1}`}
                 className="max-w-[100vw] max-h-[90vh] object-contain rounded-lg"
               />
