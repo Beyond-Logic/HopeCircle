@@ -13,6 +13,11 @@ CREATE TABLE IF NOT EXISTS public.messages (
 CREATE INDEX IF NOT EXISTS idx_messages_room_name ON public.messages(room_name);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON public.messages(created_at DESC);
 
+CREATE INDEX IF NOT EXISTS idx_messages_room_name ON messages(room_name);
+CREATE INDEX IF NOT EXISTS idx_messages_receiver_id ON messages(receiver_id);
+CREATE INDEX IF NOT EXISTS idx_messages_is_read ON messages(is_read);
+CREATE INDEX IF NOT EXISTS idx_messages_room_receiver_read ON messages(room_name, receiver_id, is_read);
+
 
 
 -- Enable RLS

@@ -27,6 +27,7 @@ import { useAuth } from "@/context/authContext";
 import { authService } from "@/lib/supabase/service/auth-service";
 import { useQuery } from "@tanstack/react-query";
 import { chatService } from "@/lib/supabase/service/chat-service";
+import { useEffect, useState } from "react";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -35,6 +36,7 @@ interface AppLayoutProps {
 export default function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const { user, profile } = useAuth();
+  const [profilePreview, setProfilePreview] = useState<string | null>(null);
 
   // 🔔 unread count
   const { data: unreadCount = 0 } = useQuery({
@@ -54,6 +56,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
     { name: "Inbox", href: "/inbox", icon: Inbox },
   ];
 
+  // Update user last active every minute when online
+  useEffect(() => {
+    if (user?.id) {
+      const interval = setInterval(() => {
+        chatService.updateUserLastActive(user.id);
+      }, 60000); // Update every minute
+
+      // Update immediately on mount
+      chatService.updateUserLastActive(user.id);
+
+      return () => clearInterval(interval);
+    }
+  }, [user?.id]);
+
   const handleLogout = async () => {
     try {
       authService.signOut();
@@ -62,6 +78,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
       console.error("Logout error:", error);
     }
   };
+
+
+  useEffect(() => {
+    authService
+      .getAvatarUrl(profile?.avatar_url as string)
+      .then(setProfilePreview);
+  }, [profile?.avatar_url]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -114,8 +137,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
               >
                 <Avatar className="h-10 w-10">
                   <AvatarImage
-                    src={profile?.avatar_url || "/placeholder.svg"}
-                    alt={profile?.first_name || "User"}
+                    src={profilePreview as string}
+                    alt={profile?.first_name}
                   />
                   <AvatarFallback className="bg-primary/10">
                     <User className="w-5 h-5 text-primary" />
@@ -132,8 +155,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <div className="flex items-center justify-start gap-2 p-2">
                 <Avatar className="h-10 w-10">
                   <AvatarImage
-                    src={profile?.avatar_url || "/placeholder.svg"}
-                    alt={profile?.first_name || "User"}
+                    src={profilePreview as string}
+                    alt={profile?.first_name}
                   />
                   <AvatarFallback>
                     <User className="w-5 h-5" />

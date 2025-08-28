@@ -209,10 +209,7 @@ CreatePostFormProps) {
 
           <div className="flex gap-6">
             <Avatar className="w-10 h-10 flex-shrink-0 mt-2">
-              <AvatarImage
-                src={profilePreview}
-                alt="Your avatar"
-              />
+              <AvatarImage src={profilePreview} alt="Your avatar" />
               <AvatarFallback>
                 <User className="w-5 h-5" />
               </AvatarFallback>
@@ -228,7 +225,7 @@ CreatePostFormProps) {
                 })}
                 value={contentValue}
                 onChange={(e) => handleContentChange(e.target.value)}
-                placeholder="Share your thoughts, experiences, or encouragement with the community... Use @ to tag people you follow"
+                placeholder="How are you? - Use @ to tag people you follow"
                 // className="min-h-[100px] resize-none border-0 p-0 focus-visible:ring-0 text-base"
                 className="resize-none border-0 p-0 focus-visible:ring-0 text-[15px]"
               />
@@ -337,7 +334,7 @@ CreatePostFormProps) {
               {imagePreviews.map((preview, index) => (
                 <div key={index} className="relative">
                   <img
-                    src={preview || "/placeholder.svg"}
+                    src={preview}
                     alt={`Preview ${index + 1}`}
                     className="w-full h-32 object-cover rounded-lg border"
                   />
