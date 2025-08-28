@@ -276,7 +276,7 @@ export function Chat() {
         {selectedUser ? (
           <>
             {/* Header with user avatar + info (sticky) */}
-            <div className="border rounded-t-2xl bg-[#f8f8f8] px-4 py-3 flex border-b top-16 sticky z-10 items-center gap-3 shadow-sm text-foreground antialiased">
+            <div className="border rounded-t-2xl bg-[#f8f8f8] px-4 py-3 flex border-b top-16 sticky z-10 items-center gap-3 shadow-none text-foreground antialiased">
               <Button
                 variant="ghost"
                 size="icon"

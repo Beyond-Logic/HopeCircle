@@ -193,7 +193,7 @@ CreatePostFormProps) {
   };
 
   return (
-    <Card className="!p-4">
+    <Card className="!p-4 border-0 shadow-none">
       <CardContent className="!p-0">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* {(groupName || selectedGroupId) && (

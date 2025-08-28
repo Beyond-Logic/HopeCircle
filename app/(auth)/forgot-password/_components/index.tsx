@@ -43,11 +43,11 @@ export function ForgotPassword() {
 
   if (isEmailSent) {
     return (
-      <div className="flex items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-6 h-6 text-primary-foreground" />
+      <div className="p-8 md:p-12">
+        <Card className="border-0 shadow-none">
+          <CardHeader className="text-center space-y-4 px-0">
+            <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle className="w-6 h-6 text-primary" />
             </div>
             <CardTitle className="text-2xl">Check Your Email</CardTitle>
             <p className="text-muted-foreground">
@@ -83,13 +83,13 @@ export function ForgotPassword() {
   }
 
   return (
-    <div className="flex items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-            <Heart className="w-6 h-6 text-primary-foreground" />
+    <div className="p-8 md:p-12">
+      <Card className="border-0 shadow-none">
+        <CardHeader className="text-center space-y-4 px-0">
+          <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+            <Heart className="w-6 h-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Reset Password</CardTitle>
+          <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
           <p className="text-muted-foreground">
             Enter your email address and we'll send you a reset link
           </p>
