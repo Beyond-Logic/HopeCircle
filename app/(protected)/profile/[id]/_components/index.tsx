@@ -261,10 +261,12 @@ export function Profile() {
                     </Button>
                   ) : (
                     <>
-                      <Button>
-                        <MessageCircle className="w-4 h-4 mr-2" />
-                        Message
-                      </Button>
+                      <Link href={`/inbox?message=${profileData.profile.id}`}>
+                        <Button>
+                          <MessageCircle className="w-4 h-4 mr-2" />
+                          Message
+                        </Button>
+                      </Link>
                       {isFollowing ? (
                         <Button
                           variant="outline"

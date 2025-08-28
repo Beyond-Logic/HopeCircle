@@ -1,4 +1,5 @@
 import { createClient } from "../client";
+import { authService } from "./auth-service";
 
 const supabase = createClient();
 
@@ -49,12 +50,13 @@ export const userService = {
 
     const { data: users, error: userError } = await supabase
       .from("users")
-      .select("id, first_name, last_name, username, avatar_url, country, genotype")
+      .select(
+        "id, first_name, last_name, username, avatar_url, country, genotype"
+      )
       .in("id", followerIds);
 
     return { data: users, error: userError };
   },
-
   async getUserFollowing(userId: string) {
     // Step 1: get following user IDs
     const { data: follows, error: followsError } = await supabase
@@ -75,6 +77,23 @@ export const userService = {
       )
       .in("id", followingIds);
 
-    return { data: users, error: usersError };
+    if (usersError) return { data: null, error: usersError };
+
+    // Step 3: resolve signed avatar urls
+    const enrichedUsers = await Promise.all(
+      users.map(async (u) => {
+        let avatar_preview: string | null = null;
+        if (u.avatar_url) {
+          try {
+            avatar_preview = await authService.getAvatarUrl(u.avatar_url);
+          } catch {
+            avatar_preview = null;
+          }
+        }
+        return { ...u, avatar_preview };
+      })
+    );
+
+    return { data: enrichedUsers, error: null };
   },
 };
