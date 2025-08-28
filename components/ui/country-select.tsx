@@ -46,7 +46,6 @@ export function CountrySelect({
 }: CountrySelectProps) {
   const [open, setOpen] = React.useState(false);
 
-  console.log("Selected country:", countries);
 
   // Build options from countries-list once
   const options = React.useMemo<CountryOption[]>(
@@ -74,7 +73,7 @@ export function CountrySelect({
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
-          className="w-full justify-between mt-2"
+          className="w-full justify-between mt-2 bg-transparent"
         >
           {selected ? (
             <span className="flex items-center gap-2 truncate">
@@ -88,7 +87,7 @@ export function CountrySelect({
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-[320px] p-0" align="start">
+      <PopoverContent className="max-w-[320px] w-full p-0" align="start">
         <Command>
           <CommandInput placeholder="Search country…" />
           <CommandList>

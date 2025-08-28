@@ -132,9 +132,9 @@ export function Signup() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* Email */}
             <div>
-              <Label htmlFor="email" className="text-sm font-medium mb-2 block">
+              {/* <Label htmlFor="email" className="text-sm font-medium mb-2 block">
                 Email
-              </Label>
+              </Label> */}
               <Input
                 id="email"
                 type="email"
@@ -146,7 +146,7 @@ export function Signup() {
                     message: "Invalid email address",
                   },
                 })}
-                placeholder="john@example.com"
+                placeholder="Email address"
               />
               {errors.email && (
                 <p className="text-sm text-destructive mt-1">
@@ -157,12 +157,12 @@ export function Signup() {
 
             {/* Password */}
             <div>
-              <Label
+              {/* <Label
                 htmlFor="password"
                 className="text-sm font-medium mb-2 block"
               >
                 Password
-              </Label>
+              </Label> */}
               <div className="relative">
                 <Input
                   id="password"
@@ -175,7 +175,7 @@ export function Signup() {
                       message: "Password must be at least 8 characters",
                     },
                   })}
-                  placeholder="••••••••"
+                  placeholder="Password"
                 />
                 <Button
                   type="button"
@@ -200,12 +200,12 @@ export function Signup() {
 
             {/* Confirm Password */}
             <div>
-              <Label
+              {/* <Label
                 htmlFor="confirmPassword"
                 className="text-sm font-medium mb-2 block"
               >
                 Confirm Password
-              </Label>
+              </Label> */}
               <div className="relative">
                 <Input
                   id="confirmPassword"
@@ -216,7 +216,7 @@ export function Signup() {
                     validate: (value) =>
                       value === password || "Passwords do not match",
                   })}
-                  placeholder="••••••••"
+                  placeholder="Confirm Password"
                 />
                 <Button
                   type="button"
