@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { useUserFollowing } from "@/hooks/react-query/use-get-user-following";
 import { useUserGroups } from "@/hooks/react-query/use-user-groups";
 import { useUserPosts } from "@/hooks/react-query/use-user-posts";
+import { useUserFollowers } from "@/hooks/react-query/use-get-user-followers";
 
 export function Profile() {
   const params = useParams();
@@ -116,7 +117,10 @@ export function Profile() {
 
   // const error = isMe ? errorCurrentUser : errorOtherUser;
 
+  const { data: followers } = useUserFollowers(user?.id);
   const { data: following, refetch } = useUserFollowing(user?.id);
+
+  console.log("following", "follower", following, followers);
 
   const isFollowing = following?.some((f) => f.id === profileData?.profile.id);
 
@@ -290,7 +294,7 @@ export function Profile() {
               </div>
 
               {!isUserGroupsLoading && !isUserPostsLoading && (
-                <div className="flex gap-6 mt-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mt-4 w-fit">
                   <div className="text-center">
                     <div className="text-xl font-bold">{postCount}</div>
                     <div className="text-sm text-muted-foreground">Posts</div>
@@ -298,6 +302,22 @@ export function Profile() {
                   <div className="text-center">
                     <div className="text-xl font-bold">{groupCount}</div>
                     <div className="text-sm text-muted-foreground">Groups</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold">
+                      {followers?.length || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Followers
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold">
+                      {following?.length || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Following
+                    </div>
                   </div>
                 </div>
               )}
