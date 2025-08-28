@@ -156,7 +156,7 @@ export const RealtimeChat = ({
     isConnected && (newMessage.trim() || selectedFiles.length > 0);
 
   return (
-    <Card className="flex p-6 flex-col h-full w-full bg-background text-foreground antialiased rounded-b-2xl rounded-t-none">
+    <Card className="flex p-6 flex-col md:h-[700px] w-full bg-background text-foreground antialiased rounded-b-2xl rounded-t-none">
       {/* Messages */}
       <div ref={containerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && !isConnected && (
