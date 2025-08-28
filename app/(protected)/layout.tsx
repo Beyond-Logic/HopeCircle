@@ -6,6 +6,7 @@ import { AuthProvider} from "@/context/authContext";
 import AppLayout from "@/components/layouts/app-layout";
 import { Toaster } from "@/components/ui/sonner";
 import { ReactQueryProvider } from "@/components/layouts/react-query-provider";
+import { Suspense } from "react";
 
 
 interface AppLayoutProps {
@@ -17,8 +18,10 @@ export default function ProtectedLayout({ children }: AppLayoutProps) {
   return (
     <AuthProvider>
       <ReactQueryProvider>
-      <AppLayout>{children}</AppLayout>
-      <Toaster richColors position="bottom-center" />
+        <Suspense>
+          <AppLayout>{children}</AppLayout>
+        </Suspense>
+        <Toaster richColors position="bottom-center" />
       </ReactQueryProvider>
     </AuthProvider>
   );
