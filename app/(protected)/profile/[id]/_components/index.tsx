@@ -210,7 +210,7 @@ export function Profile() {
           <div className="flex flex-col sm:flex-row items-start gap-6">
             <Avatar className="w-24 h-24">
               <AvatarImage
-                src={profilePreview || "/placeholder.svg?height=96&width=96"}
+                src={profilePreview as string}
                 alt={profileData.profile.username}
               />
               <AvatarFallback className="text-2xl">

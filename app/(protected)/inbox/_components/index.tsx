@@ -48,6 +48,8 @@ export function Chat() {
   const { data: followingUsers = [] } = useUserFollowing(user?.user.id);
   const { data: activeChats, isLoading } = useUserActiveChats(user?.user.id);
 
+  const [lastActive, setLastActive] = useState<string | null>(null);
+
   const chatUsers = useChatUsers(activeChats as []);
 
   console.log("active chats", activeChats);
@@ -65,6 +67,18 @@ export function Chat() {
   const currentUser = user?.profile.username;
 
   useEffect(() => {
+    if (selectedUser?.id) {
+      const fetchLastActive = async () => {
+        const { data } = await chatService.getUserLastActive(selectedUser.id);
+        if (data?.last_active) {
+          setLastActive(data.last_active);
+        }
+      };
+      fetchLastActive();
+    }
+  }, [selectedUser]);
+
+  useEffect(() => {
     if (selectedUser?.id && user?.user.id) {
       const roomName = chatService.getRoomName(user.user.id, selectedUser.id);
       chatService.markMessagesAsRead(roomName, user.user.id);
@@ -78,6 +92,7 @@ export function Chat() {
         followingUsers?.find((f) => f.id === messageUserId) ||
         externalUser ||
         chatUsers[messageUserId];
+        setIsSidebarOpen(false)
       if (targetUser) {
         setSelectedUser(targetUser);
         return;
@@ -257,7 +272,7 @@ export function Chat() {
         {selectedUser ? (
           <>
             {/* Header with user avatar + info (sticky) */}
-            <div className="border rounded-t-2xl   bg-background px-4 py-3 flex border-b top-16 sticky z-10 items-center gap-3 shadow-sm text-foreground antialiased">
+            <div className="border rounded-t-2xl bg-[#f8f8f8] px-4 py-3 flex border-b top-16 sticky z-10 items-center gap-3 shadow-sm text-foreground antialiased">
               <Button
                 variant="ghost"
                 size="icon"
@@ -266,7 +281,7 @@ export function Chat() {
               >
                 ☰
               </Button>
-              <Avatar className="w-10 h-10">
+              <Avatar className="w-10 h-10 relative">
                 <AvatarImage
                   src={selectedUser.avatar_preview}
                   alt={selectedUser.username}
@@ -275,17 +290,28 @@ export function Chat() {
                 <AvatarFallback>
                   <User className="w-5 h-5" />
                 </AvatarFallback>
+                {onlineUsers.has(selectedUser.id) && (
+                  <span className="absolute bottom-0 right-1.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+                )}
               </Avatar>
-              <div>
+              <div className="flex-1 min-w-0">
                 <div className="font-semibold">{selectedUser.username}</div>
                 {selectedUser.first_name && (
                   <div className="text-sm text-muted-foreground">
                     {selectedUser.first_name} {selectedUser.last_name}
                   </div>
                 )}
+                <div className="text-xs text-muted-foreground">
+                  {onlineUsers.has(selectedUser.id) ? (
+                    <span className="text-green-600">Online now</span>
+                  ) : lastActive ? (
+                    <span>Last seen {formatRelativeTime(lastActive)}</span>
+                  ) : (
+                    <span>Offline</span>
+                  )}
+                </div>
               </div>
             </div>
-
             {/* Chat box scrollable area */}
             <div className="flex-1 overflow-y-auto">
               <RealtimeChat

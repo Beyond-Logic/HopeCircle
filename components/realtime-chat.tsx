@@ -6,10 +6,12 @@ import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { type ChatMessage, useRealtimeChat } from "@/hooks/use-realtime-chat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { AlertCircle, Paperclip, Send, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "./ui/card";
-import { chatService } from "@/lib/supabase/service/chat-service";
+import { chatService, FILE_LIMITS } from "@/lib/supabase/service/chat-service";
+import { useQueryClient } from "@tanstack/react-query";
+import { Alert, AlertDescription } from "./ui/alert";
 
 interface RealtimeChatProps {
   currentUserId: string;
@@ -27,6 +29,7 @@ export const RealtimeChat = ({
   onMessage,
 }: RealtimeChatProps) => {
   const { containerRef, scrollToBottom } = useChatScroll();
+  const queryClient = useQueryClient();
 
   const { messages, sendMessage, isConnected } = useRealtimeChat({
     currentUserId,
@@ -38,6 +41,10 @@ export const RealtimeChat = ({
   console.log("messages", messages);
 
   const [newMessage, setNewMessage] = useState("");
+
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (onMessage) onMessage(messages);
@@ -66,15 +73,71 @@ export const RealtimeChat = ({
   }, [messages, currentUserId, otherUserId]);
 
   const handleSendMessage = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!newMessage.trim() || !isConnected) return;
+      if ((!newMessage.trim() && selectedFiles.length === 0) || !isConnected)
+        return;
 
-      sendMessage(newMessage);
-      setNewMessage("");
+      try {
+        await sendMessage(newMessage, selectedFiles);
+        setNewMessage("");
+        setSelectedFiles([]);
+        setUploadError(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        setUploadError(error.message || "Failed to send message");
+        setTimeout(() => setUploadError(null), 5000);
+      }
     },
-    [newMessage, isConnected, sendMessage]
+    [newMessage, selectedFiles, isConnected, sendMessage]
   );
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    // Validate files
+    const validFiles: File[] = [];
+    const errors: string[] = [];
+
+    files.forEach((file) => {
+      const fileCategory = chatService.getFileCategory(file.type);
+      const maxSize = FILE_LIMITS[fileCategory];
+
+      if (file.size > maxSize) {
+        errors.push(
+          `${file.name}: Maximum size for ${fileCategory} is ${
+            maxSize / 1024 / 1024
+          }MB`
+        );
+      } else {
+        validFiles.push(file);
+      }
+    });
+
+    if (errors.length > 0) {
+      setUploadError(errors.join("\n"));
+      setTimeout(() => setUploadError(null), 5000);
+    }
+
+    if (validFiles.length > 0) {
+      setSelectedFiles((prev) => [...prev, ...validFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDeleteMessage = () => {
+    queryClient.invalidateQueries({ queryKey: ["messages"] });
+    queryClient.invalidateQueries({
+      queryKey: ["activeChats", currentUserId],
+    });
+  };
 
   return (
     <Card className="flex p-6 flex-col h-full w-full bg-background text-foreground antialiased rounded-b-2xl rounded-t-none">
@@ -100,6 +163,7 @@ export const RealtimeChat = ({
                   message={message}
                   isOwnMessage={message.user.name === username}
                   showHeader={showHeader}
+                  onDelete={handleDeleteMessage}
                 />
               </div>
             );
@@ -107,11 +171,67 @@ export const RealtimeChat = ({
         </div>
       </div>
 
+      {/* Upload error */}
+      {uploadError && (
+        <Alert variant="destructive" className="mx-4 mb-2">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-sm">{uploadError}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* File previews */}
+      {selectedFiles.length > 0 && (
+        <div className="px-4 py-2 border-t border-border bg-muted/50">
+          <div className="flex flex-wrap gap-2">
+            {selectedFiles.map((file, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-2 bg-background px-3 py-2 rounded-lg border text-sm"
+              >
+                <Paperclip className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate max-w-xs">{file.name}</span>
+                <span className="text-muted-foreground text-xs">
+                  ({(file.size / 1024).toFixed(1)} KB)
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 ml-1"
+                  onClick={() => removeFile(index)}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <form
         onSubmit={handleSendMessage}
         className="flex w-full gap-2 border-t border-border p-4"
       >
+        <input
+          title="files"
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+          className="hidden"
+          accept="image/*,video/*,.pdf,.doc,.docx,.txt,.rtf,.csv,.xls,.xlsx"
+          multiple
+        />
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => fileInputRef.current?.click()}
+          className="mt-2"
+        >
+          <Paperclip className="w-4 h-4" />
+        </Button>
+
         <Input
           className={cn(
             "rounded-full bg-background text-sm transition-all duration-300",
@@ -120,7 +240,13 @@ export const RealtimeChat = ({
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type a message..."
+          placeholder={`${
+            selectedFiles.length > 0
+              ? `Include a message to send ${
+                  selectedFiles.length > 1 ? "files" : "file"
+                }`
+              : "Type a message..."
+          }`}
           disabled={!isConnected}
         />
         {isConnected && newMessage.trim() && (

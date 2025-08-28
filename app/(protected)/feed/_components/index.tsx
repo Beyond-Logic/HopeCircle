@@ -115,15 +115,18 @@ export function Feed() {
       <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20">
         <CardContent className="p-6">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-              <Heart className="w-5 h-5 text-primary-foreground" />
+            <div>
+              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                <Heart className="w-5 h-5 text-primary-foreground" />
+              </div>
             </div>
+
             <div>
               <h2 className="font-semibold text-lg">
                 Welcome to your community feed!
               </h2>
               <p className="text-muted-foreground text-sm">
-                Share your journey and connect with fellow warriors
+                Share your journey and connect with others.
               </p>
             </div>
           </div>
@@ -140,7 +143,7 @@ export function Feed() {
             <Avatar className="w-10 h-10 flex-shrink-0">
               <Link href={`/profile/me`}>
                 <AvatarImage
-                  src={profilePreview || `/placeholder.svg?height=40&width=40`}
+                  src={profilePreview as string}
                   alt="Your avatar"
                   className="rounded-full"
                 />
@@ -154,7 +157,7 @@ export function Feed() {
             </Avatar>
 
             <Textarea
-              placeholder="Share your thoughts, experiences, or encouragement with the community... Use @ to tag people you follow"
+              placeholder="How are you? - Use @ to tag people you follow"
               className="resize-none pointer-events-none text-[15px]"
             />
           </div>
@@ -227,7 +230,8 @@ export function Feed() {
           <Loader2 className="animate-spin" />
         </div>
       ) : (
-        !isLoading && posts?.length === 0 && (
+        !isLoading &&
+        posts?.length === 0 && (
           <Card className="p-8 text-center">
             <p className="text-muted-foreground">No posts to show yet.</p>
           </Card>
