@@ -38,12 +38,13 @@ export const RealtimeChat = ({
     otherUsername,
   });
 
-  console.log("messages", messages);
-
   const [newMessage, setNewMessage] = useState("");
-
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Use ref to track the file input
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -65,8 +66,6 @@ export const RealtimeChat = ({
       (msg) => msg.receiver_id === currentUserId && !msg.is_read
     );
 
-    console.log("hasUnread", hasUnread);
-
     if (hasUnread) {
       chatService.markMessagesAsRead(roomName, currentUserId);
     }
@@ -74,6 +73,7 @@ export const RealtimeChat = ({
 
   const handleSendMessage = useCallback(
     async (e: React.FormEvent) => {
+      setIsLoading(true);
       e.preventDefault();
       if ((!newMessage.trim() && selectedFiles.length === 0) || !isConnected)
         return;
@@ -83,6 +83,8 @@ export const RealtimeChat = ({
         setNewMessage("");
         setSelectedFiles([]);
         setUploadError(null);
+        setIsLoading(false);
+        // Reset file input after successful send
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -90,6 +92,7 @@ export const RealtimeChat = ({
       } catch (error: any) {
         setUploadError(error.message || "Failed to send message");
         setTimeout(() => setUploadError(null), 5000);
+        setIsLoading(false);
       }
     },
     [newMessage, selectedFiles, isConnected, sendMessage]
@@ -129,7 +132,16 @@ export const RealtimeChat = ({
   };
 
   const removeFile = (index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setSelectedFiles((prev) => {
+      const newFiles = prev.filter((_, i) => i !== index);
+
+      // Reset file input when all files are removed
+      if (newFiles.length === 0 && fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
+      return newFiles;
+    });
   };
 
   const handleDeleteMessage = () => {
@@ -138,6 +150,10 @@ export const RealtimeChat = ({
       queryKey: ["activeChats", currentUserId],
     });
   };
+
+  // Allow sending with just files (no message)
+  const canSend =
+    isConnected && (newMessage.trim() || selectedFiles.length > 0);
 
   return (
     <Card className="flex p-6 flex-col h-full w-full bg-background text-foreground antialiased rounded-b-2xl rounded-t-none">
@@ -235,25 +251,24 @@ export const RealtimeChat = ({
         <Input
           className={cn(
             "rounded-full bg-background text-sm transition-all duration-300",
-            isConnected && newMessage.trim() ? "w-[calc(100%-36px)]" : "w-full"
+            canSend ? "w-[calc(100%-80px)]" : "w-[calc(100%-40px)]"
           )}
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder={`${
             selectedFiles.length > 0
-              ? `Include a message to send ${
-                  selectedFiles.length > 1 ? "files" : "file"
-                }`
+              ? `Add a message (optional)`
               : "Type a message..."
           }`}
           disabled={!isConnected}
         />
-        {isConnected && newMessage.trim() && (
+
+        {canSend && (
           <Button
             className="aspect-square mt-1.5 rounded-full animate-in fade-in slide-in-from-right-4 duration-300"
             type="submit"
-            disabled={!isConnected}
+            disabled={!canSend || isLoading}
           >
             <Send className="size-4" />
           </Button>

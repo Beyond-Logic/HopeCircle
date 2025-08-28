@@ -92,7 +92,7 @@ export function Chat() {
         followingUsers?.find((f) => f.id === messageUserId) ||
         externalUser ||
         chatUsers[messageUserId];
-        setIsSidebarOpen(false)
+      setIsSidebarOpen(false);
       if (targetUser) {
         setSelectedUser(targetUser);
         return;
@@ -245,7 +245,11 @@ export function Chat() {
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
-                          {chat.content || "No messages yet"}
+                          {chat.content
+                            ? chat.content
+                            : chat.created_at
+                            ? "Attachment"
+                            : "No message yet"}
                           {hasUnread && (
                             <span className="ml-2 bg-primary text-primary-foreground text-[10px] px-1 py-0.5 rounded">
                               {chat.unread_count}

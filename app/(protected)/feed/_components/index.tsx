@@ -177,15 +177,15 @@ export function Feed() {
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
           <TabsTrigger
             value="recent"
-            className="flex items-center gap-2 text-xs md:text-sm"
+            className="flex items-center gap-2 text-sm"
           >
             <Clock className="w-4 h-4" />
-            <span className="hidden sm:inline">Recent</span>
-            <span className="sm:hidden">All</span>
+            <span className="hidden sm:inline">World</span>
+            <span className="sm:hidden">World</span>
           </TabsTrigger>
           <TabsTrigger
             value="my-groups"
-            className="flex items-center gap-2 text-xs md:text-sm"
+            className="flex items-center gap-2 text-sm"
           >
             <Users className="w-4 h-4" />
             <span className="hidden sm:inline">My Groups</span>
@@ -193,7 +193,7 @@ export function Feed() {
           </TabsTrigger>
           <TabsTrigger
             value="following"
-            className="flex items-center gap-2 text-xs md:text-sm"
+            className="flex items-center gap-2 text-sm"
           >
             <UserPlus className="w-4 h-4" />
             <span className="hidden sm:inline">Following</span>
@@ -201,7 +201,7 @@ export function Feed() {
           </TabsTrigger>
           <TabsTrigger
             value="popular"
-            className="flex items-center gap-2 text-xs md:text-sm"
+            className="flex items-center gap-2 text-sm"
           >
             <TrendingUp className="w-4 h-4" />
             Popular
