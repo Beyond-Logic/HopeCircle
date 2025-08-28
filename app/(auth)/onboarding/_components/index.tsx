@@ -62,13 +62,15 @@ export function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted flex items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-            <Heart className="w-6 h-6 text-primary-foreground" />
+    <div className="p-8 md:p-12">
+      <Card className="border-0 shadow-none">
+        <CardHeader className="text-center space-y-4 px-0">
+          <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+            <Heart className="w-6 h-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Complete Your Profile</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            Complete Your Profile
+          </CardTitle>
           <p className="text-muted-foreground">
             Help us personalize your HopeCircle experience
           </p>

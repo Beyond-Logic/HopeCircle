@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Heart, Eye, EyeOff } from "lucide-react";
+import { Heart, Eye, EyeOff, Facebook, Github, Twitter } from "lucide-react";
 import { authService } from "@/lib/supabase/service/auth-service";
 
 interface SignupFormData {
@@ -63,55 +63,82 @@ export function Signup() {
 
   if (success) {
     return (
-      <div className="flex items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-              <Heart className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <CardTitle className="text-2xl">Check Your Email</CardTitle>
-            <p className="text-muted-foreground">
-              We've sent you a verification link. Please check your email and
-              click the link to verify your account.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => router.push("/login")} className="w-full">
-              Go to Login
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="w-full max-w-md border-0 shadow-xl">
+        <CardHeader className="text-center space-y-4">
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Heart className="w-8 h-8 text-primary" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
+          <p className="text-muted-foreground">
+            We've sent you a verification link. Please check your email and
+            click the link to verify your account.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={() => router.push("/login")}
+            className="w-full bg-primary hover:bg-primary/90 h-11 rounded-lg"
+          >
+            Go to Login
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="flex items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-            <Heart className="w-6 h-6 text-primary-foreground" />
+    <div className="p-8 md:p-12">
+      <Card className="border-0 shadow-none">
+        <CardHeader className="text-center space-y-4 px-0">
+          <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+            <Heart className="w-6 h-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Join HopeCircle</CardTitle>
+          <CardTitle className="text-2xl font-bold">Join HopeCircle</CardTitle>
           <p className="text-muted-foreground">
             Create your account to connect with the community
           </p>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="px-0">
           {error && (
-            <Alert variant="destructive" className="mb-4">
+            <Alert variant="destructive" className="mb-4 rounded-lg">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
+          {/* <div className="grid grid-cols-3 gap-3 mb-6">
+            <Button variant="outline" className="h-10 rounded-lg">
+              <Github className="h-4 w-4 mr-2" /> Github
+            </Button>
+            <Button variant="outline" className="h-10 rounded-lg">
+              <Twitter className="h-4 w-4 mr-2" /> Twitter
+            </Button>
+            <Button variant="outline" className="h-10 rounded-lg">
+              <Facebook className="h-4 w-4 mr-2" /> Facebook
+            </Button>
+          </div> */}
+
+          {/* <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                Or continue with email
+              </span>
+            </div>
+          </div> */}
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* Email */}
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-sm font-medium mb-2 block">
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
+                className="rounded-lg h-11"
                 {...register("email", {
                   required: "Email is required",
                   pattern: {
@@ -130,11 +157,17 @@ export function Signup() {
 
             {/* Password */}
             <div>
-              <Label htmlFor="password">Password</Label>
+              <Label
+                htmlFor="password"
+                className="text-sm font-medium mb-2 block"
+              >
+                Password
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  className="rounded-lg h-11 pr-10"
                   {...register("password", {
                     required: "Password is required",
                     minLength: {
@@ -148,7 +181,7 @@ export function Signup() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-primary"
+                  className="absolute right-0 top-0 h-full px-3 py-2 text-muted-foreground hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
@@ -167,11 +200,17 @@ export function Signup() {
 
             {/* Confirm Password */}
             <div>
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label
+                htmlFor="confirmPassword"
+                className="text-sm font-medium mb-2 block"
+              >
+                Confirm Password
+              </Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
+                  className="rounded-lg h-11 pr-10"
                   {...register("confirmPassword", {
                     required: "Please confirm your password",
                     validate: (value) =>
@@ -183,7 +222,7 @@ export function Signup() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-primary"
+                  className="absolute right-0 top-0 h-full px-3 py-2 text-muted-foreground hover:bg-transparent"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? (
@@ -200,7 +239,11 @@ export function Signup() {
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full h-11 rounded-lg bg-primary hover:bg-primary/90"
+              disabled={isLoading}
+            >
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </form>
@@ -208,7 +251,10 @@ export function Signup() {
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Link href="/login" className="text-primary hover:underline">
+              <Link
+                href="/login"
+                className="text-primary hover:underline font-medium"
+              >
                 Sign in
               </Link>
             </p>

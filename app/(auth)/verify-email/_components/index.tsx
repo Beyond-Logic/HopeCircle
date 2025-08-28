@@ -50,71 +50,67 @@ export function VerifyEmail() {
 
   if (isLoading) {
     return (
-    
-        <div className="flex items-center justify-center px-4 py-12">
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                <Heart className="w-6 h-6 text-primary-foreground animate-pulse" />
-              </div>
-              <CardTitle className="text-2xl">Verifying Email...</CardTitle>
-              <p className="text-muted-foreground">
-                Please wait while we verify your email address.
-              </p>
-            </CardHeader>
-          </Card>
-        </div>
- 
+      <div className="p-8 md:p-12">
+        <Card className="border-0 shadow-none">
+          <CardHeader className="text-center space-y-4 px-0">
+            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+              <Heart className="w-6 h-6 text-primary-foreground animate-pulse" />
+            </div>
+            <CardTitle className="text-2xl font-bold">Verifying Email...</CardTitle>
+            <p className="text-muted-foreground">
+              Please wait while we verify your email address.
+            </p>
+          </CardHeader>
+        </Card>
+      </div>
     );
   }
 
   return (
-
-      <div className="flex items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-              {isVerified ? (
-                <CheckCircle className="w-6 h-6 text-primary-foreground" />
-              ) : (
-                <XCircle className="w-6 h-6 text-primary-foreground" />
-              )}
-            </div>
-            <CardTitle className="text-2xl">
-              {isVerified ? "Email Verified!" : "Verification Failed"}
-            </CardTitle>
-            <p className="text-muted-foreground">
-              {isVerified
-                ? "Your email has been successfully verified. You can now sign in to your account."
-                : "We couldn't verify your email address. Please try again or contact support."}
-            </p>
-          </CardHeader>
-
-          <CardContent>
-            {error && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+    <div className="p-8 md:p-12">
+      <Card className="border-0 shadow-none">
+        <CardHeader className="text-center space-y-4 px-0">
+          <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+            {isVerified ? (
+              <CheckCircle className="w-6 h-6 text-primary" />
+            ) : (
+              <XCircle className="w-6 h-6 text-primary" />
             )}
+          </div>
+          <CardTitle className="text-2xl">
+            {isVerified ? "Email Verified!" : "Verification Failed"}
+          </CardTitle>
+          <p className="text-muted-foreground">
+            {isVerified
+              ? "Your email has been successfully verified. You can now sign in to your account."
+              : "We couldn't verify your email address. Please try again or contact support."}
+          </p>
+        </CardHeader>
 
-            <div className="space-y-3">
-              <Button onClick={() => router.push("/login")} className="w-full">
-                {isVerified ? "Continue to Login" : "Go to Login"}
+        <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="space-y-3">
+            <Button onClick={() => router.push("/login")} className="w-full">
+              {isVerified ? "Continue to Login" : "Go to Login"}
+            </Button>
+
+            {!isVerified && (
+              <Button
+                variant="outline"
+                onClick={() => router.push("/signup")}
+                className="w-full"
+              >
+                Try Signing Up Again
               </Button>
-
-              {!isVerified && (
-                <Button
-                  variant="outline"
-                  onClick={() => router.push("/signup")}
-                  className="w-full"
-                >
-                  Try Signing Up Again
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-  
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

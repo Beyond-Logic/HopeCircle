@@ -51,7 +51,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
     enabled: !!user?.id,
     refetchInterval: 5000, // poll every 5s
   });
-  
 
   const navigation = [
     { name: "Feed", href: "/feed", icon: Home },
@@ -95,8 +94,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <div className="container mx-auto flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/feed" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <Heart className="w-5 h-5 text-primary-foreground" />
+            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+              <Heart className="w-5 h-5 text-primary" />
             </div>
             <span className="font-bold text-xl">HopeCircle</span>
           </Link>

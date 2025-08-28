@@ -581,7 +581,7 @@ PostCardProps) {
 
   return (
     <>
-      <Card className="text-[15px]">
+      <Card className="text-[15px] border-0 shadow-none">
         <CardContent className="p-4">
           {/* Post Header */}
           <div className="flex items-start justify-between mb-3">

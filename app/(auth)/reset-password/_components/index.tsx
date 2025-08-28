@@ -62,10 +62,10 @@ export function ResetPassword() {
   // Show error if no token provided
   if (!token) {
     return (
-      <div className="flex items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Invalid Reset Link</CardTitle>
+      <div className="p-8 md:p-12">
+        <Card className="border-0 shadow-none">
+          <CardHeader className="text-center space-y-4 px-0">
+            <CardTitle className="text-2xl font-bold">Invalid Reset Link</CardTitle>
             <p className="text-muted-foreground">
               This password reset link is invalid or has expired.
             </p>
@@ -83,11 +83,11 @@ export function ResetPassword() {
   // Show success state
   if (isPasswordReset) {
     return (
-      <div className="flex items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-6 h-6 text-primary-foreground" />
+      <div className="p-8 md:p-12">
+        <Card className="border-0 shadow-none">
+          <CardHeader className="text-center space-y-4 px-0">
+            <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle className="w-6 h-6 text-primary" />
             </div>
             <CardTitle className="text-2xl">
               Password Reset Successful
