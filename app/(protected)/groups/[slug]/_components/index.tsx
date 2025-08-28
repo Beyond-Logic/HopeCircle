@@ -18,6 +18,7 @@ import {
   Settings,
   Share,
   User,
+  CheckCircle,
 } from "lucide-react";
 import { Loader2 } from "lucide-react"; // spinner
 import { useGetGroupById } from "@/hooks/react-query/use-group-by-id";
@@ -186,7 +187,13 @@ export function GroupDetail() {
             </div>
           )}
 
-          <div className="absolute top-4 right-4">
+          <div className="absolute top-4 right-4 flex gap-2">
+            {group.created_by === user?.user.id && (
+              <Badge className="bg-green-500/10 text-green-500 px-2 py-1 rounded">
+                <CheckCircle className="w-3 h-3 mr-1" />
+                Owner
+              </Badge>
+            )}
             <Badge className={`${badgeBg} px-2 py-1 rounded`}>
               {group.type === "country" ? (
                 <MapPin className="w-3 h-3 mr-1" />

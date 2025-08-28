@@ -18,10 +18,12 @@ import {
   Eye,
   LogOut,
   ListRestart,
+  CheckCircle,
 } from "lucide-react";
 import { useGroups } from "@/hooks/react-query/use-groups";
 import { groupService } from "@/lib/supabase/service/groups-service";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
+import { useGroupPosts } from "@/hooks/react-query/use-group-posts";
 
 export function Groups() {
   const { data: user } = useCurrentUserProfile();
@@ -50,7 +52,6 @@ export function Groups() {
 
   const [loadingGroupId, setLoadingGroupId] = useState<string | null>(null);
 
-  console.log("groups", groups);
 
   const handleJoinGroup = async (groupId: string) => {
     if (!user?.user.id) return;
@@ -178,7 +179,7 @@ interface GroupGridProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     group_members?: Array<any>;
     image_url?: string;
-    created_by?:string
+    created_by?: string;
   }>;
   onJoinGroup: (groupId: string) => void;
   loadingGroupId: string;
@@ -246,34 +247,27 @@ function GroupGrid({
         return (
           <Card
             key={group.id}
-            className="overflow-hidden hover:shadow-lg transition-shadow !pt-0"
+            className="overflow-hidden hover:shadow-lg transition-shadow !pt-0 group cursor-pointer"
+            onClick={() => window.open(`/groups/${group.id}`, "_self")}
           >
             <div className="aspect-video h-[200px] relative flex items-center justify-center">
               {group.image_url ? (
-                <Link
-                  href={`/groups/${group.id}`}
-                  className="w-full h-full object-cover"
-                >
+                <div className="w-full h-full object-cover">
                   <img
                     src={group.image_url}
                     alt={group.name}
                     className="w-full h-full object-cover"
                   />
-                </Link>
+                </div>
               ) : (
-                <Link
-                  href={`/groups/${group.id}`}
-                  className="w-full h-full object-cover"
+                <div
+                  className={`w-full h-[200px] ${bgColor} flex items-center justify-center`}
                 >
-                  <div
-                    className={`w-full h-[200px] ${bgColor} flex items-center justify-center`}
-                  >
-                    <span className="text-white font-semibold text-lg"></span>
-                  </div>
-                </Link>
+                  <span className="text-white font-semibold text-lg"></span>
+                </div>
               )}
 
-              <div className="absolute top-3 right-3">
+              <div className="absolute top-3 right-3 flex gap-2">
                 <Badge className={`${badgeBg} px-2 py-1 rounded`}>
                   {group.type === "country" ? (
                     <MapPin className="w-3 h-3 mr-1" />
@@ -282,17 +276,31 @@ function GroupGrid({
                   )}
                   {group.type === "country" ? "Country" : "Theme"}
                 </Badge>
+
+                {/* Joined indicator badge */}
+                {isJoined &&
+                  (group.created_by === userId ? (
+                    <Badge className="bg-green-500/10 text-green-500 px-2 py-1 rounded">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Owner
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-green-500/10 text-green-500 px-2 py-1 rounded">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Joined
+                    </Badge>
+                  ))}
               </div>
             </div>
 
-            <Link href={`/groups/${group.id}`}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">{group.name}</CardTitle>
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {group.description}
-                </p>
-              </CardHeader>
-            </Link>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg line-clamp-1">
+                {group.name}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {group.description}
+              </p>
+            </CardHeader>
 
             <CardContent className="pt-0">
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
@@ -303,55 +311,48 @@ function GroupGrid({
                     members
                   </span>
                 </div>
-                <span>Active</span>
+                {/* <span>Active</span> */}
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full">
                 {isJoined ? (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 hover:bg-primary"
-                      asChild
-                    >
-                      <Link href={`/groups/${group.id}`}>Enter</Link>
-                    </Button>
-
+                  group.created_by !== userId && (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onJoinGroup(group.id)}
+                      className="w-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onJoinGroup(group.id);
+                      }}
                       disabled={loadingGroupId === group.id}
                     >
                       {loadingGroupId === group.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
-                        <LogOut className="w-4 h-4" />
+                        <>
+                          <LogOut className="w-4 h-4 mr-1" />
+                          Leave
+                        </>
                       )}
                     </Button>
-                  </>
+                  )
                 ) : (
-                  <div className="flex w-full gap-2">
-                    <Button
-                      size="sm"
-                      className="w-full flex-1"
-                      onClick={() => onJoinGroup(group.id)}
-                      disabled={loadingGroupId === group.id}
-                    >
-                      {loadingGroupId === group.id ? "Joining..." : "Join"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="hover:bg-transparent hover:text-primary"
-                      asChild
-                    >
-                      <Link href={`/groups/${group.id}`}>
-                        <Eye />
-                      </Link>
-                    </Button>
-                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onJoinGroup(group.id);
+                    }}
+                    disabled={loadingGroupId === group.id}
+                  >
+                    {loadingGroupId === group.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Join"
+                    )}
+                  </Button>
                 )}
               </div>
             </CardContent>

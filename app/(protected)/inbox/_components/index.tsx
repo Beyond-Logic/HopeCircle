@@ -317,7 +317,7 @@ export function Chat() {
               </div>
             </div>
             {/* Chat box scrollable area */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto pb-40">
               <RealtimeChat
                 currentUserId={user?.user.id as string}
                 otherUserId={selectedUser.id}
