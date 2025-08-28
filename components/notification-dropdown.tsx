@@ -147,7 +147,7 @@ const NotificationDropdown = () => {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-96 p-0" align="end" forceMount>
+      <DropdownMenuContent className="md:w-96 w-fit p-0" align="end" forceMount>
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="font-semibold">Notifications</h3>
           <div className="flex items-center gap-2">

@@ -90,7 +90,7 @@ export function Notifications() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto py-6">
+    <div className="max-w-2xl mx-auto py-6 text-[15px]">
       <div className="flex items-center justify-between mb-6">
         <h1 className="md:text-3xl text-2xl font-bold">Notifications</h1>
         <div className="flex items-center gap-2">

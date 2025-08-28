@@ -113,7 +113,7 @@ export function Feed() {
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Welcome Card */}
       <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20">
-        <CardContent className="p-6">
+        <CardContent className="p-6 py-0">
           <div className="flex items-center gap-3 mb-3">
             <div>
               <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
