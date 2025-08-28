@@ -15,10 +15,10 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   useNotifications,
-  useUnreadCount,
   useMarkAsRead,
   useMarkAllAsRead,
   useDeleteNotification,
+  useNotificationUnreadCount,
 } from "@/hooks/react-query/use-notification";
 import { Notification, NotificationGroup } from "@/types/notification";
 import { formatDistanceToNow } from "date-fns";
@@ -31,7 +31,7 @@ const NotificationDropdown = () => {
   const { notifications, count } = useNotifications(activeTab);
 
   console.log("unread count", count);
-  const { unreadCount } = useUnreadCount();
+  const { unreadCount } = useNotificationUnreadCount();
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
   const deleteNotification = useDeleteNotification();
@@ -101,36 +101,35 @@ const NotificationDropdown = () => {
         return "📍";
       case "group_invite":
       case "new_group_post":
+      case "group_join": // Add the new type
         return "👥";
       default:
         return "🔔";
     }
   };
 
-  const getNotificationLink = (notification: Notification) => {
-    if (!notification.related_entity_type || !notification.related_entity_id) {
-      return "/notifications";
-    }
+ const getNotificationLink = (notification: Notification) => {
+   if (!notification.related_entity_type || !notification.related_entity_id) {
+     return "/notifications";
+   }
 
-
-    console.log(
-      "notification.related_entity_type",
-      notification.related_entity_type
-    );
-    
-    switch (notification.related_entity_type) {
-      case "user":
-        return `/profile/${notification.related_entity_id}`;
-      case "post":
-        return `/post/${notification.related_entity_id}/?showComments=true#showComments`;
-      case "comment":
-        return `/post/${notification.related_entity_id}?showComments=true#showComments`; // You might need to adjust this
-      case "group":
-        return `/groups/${notification.related_entity_id}`;
-      default:
-        return "/notifications";
-    }
-  };
+   switch (notification.related_entity_type) {
+     case "user":
+       return `/profile/${notification.related_entity_id}`;
+     case "post":
+       return `/post/${notification.related_entity_id}/?showComments=true#showComments`;
+     case "comment":
+       return `/post/${notification.related_entity_id}?showComments=true#showComments`;
+     case "group":
+       // For group join notifications, link directly to the group members page
+       if (notification.type === "group_join") {
+         return `/groups/${notification.related_entity_id}`;
+       }
+       return `/groups/${notification.related_entity_id}`;
+     default:
+       return "/notifications";
+   }
+ };
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>

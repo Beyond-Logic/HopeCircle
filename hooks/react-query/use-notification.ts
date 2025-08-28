@@ -41,7 +41,7 @@ export const useNotifications = (
           queryKey: ["notifications", user.id],
         });
         queryClient.invalidateQueries({
-          queryKey: ["unreadCount", user.id],
+          queryKey: ["notificationUnreadCount", user.id],
         });
       }
     );
@@ -60,11 +60,11 @@ export const useNotifications = (
   };
 };
 
-export const useUnreadCount = () => {
+export const useNotificationUnreadCount = () => {
   const { user } = useAuth();
 
   const { data: unreadCount = 0, isLoading } = useQuery({
-    queryKey: ["unreadCount", user?.id],
+    queryKey: ["notificationUnreadCount", user?.id],
     queryFn: async () => {
       if (!user?.id) return 0;
       const { count } = await notificationService.getUnreadCount(user.id);
@@ -89,7 +89,7 @@ export const useMarkAsRead = () => {
         queryKey: ["notifications", user?.id],
       });
       queryClient.invalidateQueries({
-        queryKey: ["unreadCount", user?.id],
+        queryKey: ["notificationUnreadCount", user?.id],
       });
     },
   });

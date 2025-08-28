@@ -7,7 +7,8 @@ export type NotificationType =
   | "post_tag"
   | "group_invite"
   | "new_group_post"
-  | "admin_announcement";
+  | "admin_announcement"
+  | "group_join";
 
 export interface Notification {
   id: string;

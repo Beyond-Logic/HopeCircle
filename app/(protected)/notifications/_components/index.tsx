@@ -45,6 +45,7 @@ export function Notifications() {
         return "📍";
       case "group_invite":
       case "new_group_post":
+      case "group_join": // Add the new type
         return "👥";
       default:
         return "🔔";
@@ -65,6 +66,10 @@ export function Notifications() {
       case "comment":
         return `/post/${notification.related_entity_id}`;
       case "group":
+        // For group join notifications, link directly to the group members page
+        if (notification.type === "group_join") {
+          return `/groups/${notification.related_entity_id}`;
+        }
         return `/groups/${notification.related_entity_id}`;
       default:
         return "#";

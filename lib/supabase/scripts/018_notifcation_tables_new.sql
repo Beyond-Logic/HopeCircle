@@ -9,6 +9,7 @@ DECLARE
   recipient_id UUID;
   post_author_id UUID;
   comment_author_id UUID;
+  group_creator UUID;
 BEGIN
   -- Determine notification details based on the table that triggered the event
   IF TG_TABLE_NAME = 'user_follows' THEN
@@ -74,12 +75,42 @@ BEGIN
     recipient_id := NEW.tagged_user_id;
   
   ELSIF TG_TABLE_NAME = 'group_members' THEN
-    notification_type := 'group_invite';
-    notification_title := 'Group Invitation';
-    notification_message := 'You were added to the group: ' || (SELECT name FROM groups WHERE id = NEW.group_id);
-    related_type := 'group';
-    related_id := NEW.group_id;
-    recipient_id := NEW.user_id;
+    -- Check if this is a group invitation (user being added by someone else)
+    IF (SELECT auth.uid()) != NEW.user_id THEN
+      notification_type := 'group_invite';
+      notification_title := 'Group Invitation';
+      notification_message := 'You were added to the group: ' || (SELECT name FROM groups WHERE id = NEW.group_id);
+      related_type := 'group';
+      related_id := NEW.group_id;
+      recipient_id := NEW.user_id;
+    ELSE
+      -- This is a user joining a group themselves - notify group admin(s)
+      notification_type := 'group_join';
+      notification_title := 'New Group Member';
+      notification_message := (SELECT first_name || ' ' || last_name FROM users WHERE id = NEW.user_id) || ' joined your group: ' || (SELECT name FROM groups WHERE id = NEW.group_id);
+      related_type := 'group';
+      related_id := NEW.group_id;
+      
+      -- Get group creator to notify them
+      SELECT created_by INTO group_creator FROM groups WHERE id = NEW.group_id;
+      recipient_id := group_creator;
+      
+      -- Also notify other group admins/moderators if you want
+      -- FOR recipient_id IN 
+      --   SELECT user_id FROM group_members 
+      --   WHERE group_id = NEW.group_id AND role IN ('admin', 'moderator') AND user_id != NEW.user_id
+      -- LOOP
+      --   PERFORM create_notification_safe(
+      --     recipient_id, 
+      --     notification_type, 
+      --     notification_title, 
+      --     notification_message, 
+      --     related_type, 
+      --     related_id
+      --   );
+      -- END LOOP;
+      -- RETURN NEW;
+    END IF;
   
   ELSIF TG_TABLE_NAME = 'posts' AND NEW.group_id IS NOT NULL THEN
     notification_type := 'new_group_post';
