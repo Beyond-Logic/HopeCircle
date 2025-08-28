@@ -86,7 +86,7 @@ export function Groups() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Groups</h1>
+          <h1 className="md:text-3xl text-2xl font-bold">Groups</h1>
           <p className="text-muted-foreground">
             Connect with communities that matter to you
           </p>

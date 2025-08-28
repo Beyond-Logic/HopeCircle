@@ -66,8 +66,6 @@ export const authService = {
     };
   },
 
-  // In auth-service.ts
-
   async getUserByUsername(username: string) {
     if (!username)
       return { user: null, profile: null, error: "No username provided" };
@@ -106,6 +104,46 @@ export const authService = {
       error: profileError || null,
     };
   },
+
+  // inside authService
+  async getUserById(id: string) {
+    if (!id) {
+      return { user: null, profile: null, error: "No id provided" };
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", id) // exact match on id
+      .maybeSingle();
+
+    if (!profile) {
+      return {
+        user: null,
+        profile: null,
+        error: profileError ?? "User not found",
+      };
+    }
+
+    const user = {
+      id: profile.id,
+      username: profile.username,
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      avatar_url: profile.avatar_url,
+      role: profile.role,
+      status: profile.status,
+      created_at: profile.created_at,
+      updated_at: profile.updated_at,
+    };
+
+    return {
+      user: user ?? null,
+      profile: profile as UserProfile,
+      error: profileError || null,
+    };
+  },
+
   // Reset password
   async resetPassword(email: string) {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {

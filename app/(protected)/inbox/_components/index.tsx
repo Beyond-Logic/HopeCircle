@@ -146,7 +146,7 @@ export function Chat() {
       >
         <div className="md:sticky md:top-16 bg-background z-10 flex flex-col">
           <div className="p-4">
-            <h2 className="font-semibold mb-4 flex justify-between items-center">
+            <h2 className="font-semibold mb-4 flex justify-between items-center md:text-3xl text-2xl">
               Chats
               <Button
                 variant="ghost"
