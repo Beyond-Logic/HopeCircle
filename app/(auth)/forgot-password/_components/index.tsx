@@ -104,7 +104,7 @@ export function ForgotPassword() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
-              <Label htmlFor="email">Email</Label>
+              {/* <Label htmlFor="email">Email</Label> */}
               <Input
                 id="email"
                 type="email"
@@ -115,7 +115,7 @@ export function ForgotPassword() {
                     message: "Invalid email address",
                   },
                 })}
-                placeholder="john@example.com"
+                placeholder="Email address"
               />
               {errors.email && (
                 <p className="text-sm text-destructive mt-1">

@@ -109,7 +109,7 @@ export const useMarkAllAsRead = () => {
         queryKey: ["notifications", user?.id],
       });
       queryClient.invalidateQueries({
-        queryKey: ["unreadCount", user?.id],
+        queryKey: ["notificationUnreadCount", user?.id],
       });
     },
   });

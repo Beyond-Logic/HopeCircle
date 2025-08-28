@@ -81,9 +81,10 @@ export function Onboarding() {
             {/* First + Last Name */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="firstName">First Name</Label>
+                {/* <Label htmlFor="firstName">First Name</Label> */}
                 <Input
                   id="firstName"
+                  placeholder="First Name"
                   type="text"
                   {...register("first_name", {
                     required: "First name is required",
@@ -96,9 +97,10 @@ export function Onboarding() {
                 )}
               </div>
               <div>
-                <Label htmlFor="lastName">Last Name</Label>
+                {/* <Label htmlFor="lastName">Last Name</Label> */}
                 <Input
                   id="lastName"
+                  placeholder="Last Name"
                   type="text"
                   {...register("last_name", {
                     required: "Last name is required",
@@ -114,11 +116,11 @@ export function Onboarding() {
 
             {/* Username */}
             <div>
-              <Label htmlFor="username">Username</Label>
+              {/* <Label htmlFor="username">Username</Label> */}
               <Input
                 id="username"
                 type="text"
-                // placeholder="Username"
+                placeholder="Username"
                 {...register("username", {
                   required: "Username is required",
                   minLength: {
@@ -140,12 +142,12 @@ export function Onboarding() {
             </div>
             {/* Genotype */}
             <div>
-              <Label htmlFor="genotype" className="mb-2 ">
+              {/* <Label htmlFor="genotype" className="mb-2 ">
                 Genotype
-              </Label>
+              </Label> */}
               <Select onValueChange={(value) => setValue("genotype", value)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select your genotype" />
+                  <SelectValue placeholder="Genotype" />
                 </SelectTrigger>
                 <SelectContent>
                   {genotypes.map((genotype) => (
@@ -169,10 +171,11 @@ export function Onboarding() {
             </div>
             {/* ✅ Country (with CountrySelect) */}
             <div>
-              <Label htmlFor="country">Country</Label>
+              {/* <Label htmlFor="country">Country</Label> */}
               <CountrySelect
                 value={watch("country")}
                 onChange={(value) => setValue("country", value)}
+                placeholder="Country"
               />
               <input
                 type="hidden"
