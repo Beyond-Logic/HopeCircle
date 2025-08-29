@@ -54,7 +54,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   const navigation = [
     { name: "Feed", href: "/feed", icon: Home },
-    { name: "Groups", href: "/groups", icon: Users },
+    { name: "Discover", href: "/groups", icon: Users },
     { name: "Inbox", href: "/inbox", icon: Inbox },
   ];
 
