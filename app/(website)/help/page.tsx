@@ -2,13 +2,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  ArrowLeft,
-  HelpCircle,
-  Mail,
-  MessageCircle,
-
-} from "lucide-react";
+import { ArrowLeft, HelpCircle, Mail, MessageCircle } from "lucide-react";
 
 export default function HelpPage() {
   const faqs = [
@@ -28,14 +22,14 @@ export default function HelpPage() {
         "Click the three dots on any post or comment and select 'Report'. Our moderation team will review it within 24 hours.",
     },
     {
-      question: "How do I deactivate or delete my account?",
+      question: "How do I delete my account?",
       answer:
-        "You can temporarily deactivate your account by going to Settings > Deactivate Account. This will hide your content from most areas while preserving your messages. For permanent account deletion, please contact our support team to enable this option.",
+        "For account deletion, please contact our support team. We'll assist you through the process.",
     },
     {
       question: "Is my data secure?",
       answer:
-        "Yes, we take security seriously. All personal information is encrypted and we never share your data with third parties without your consent.",
+        "Yes, we take security seriously. All personal information is encrypted. We do not sell your personal data, and we only share information with your consent, with service providers who assist our operations, when required by law, or in anonymous, aggregated form for research purposes.",
     },
   ];
 
@@ -127,10 +121,6 @@ export default function HelpPage() {
             </li>
             <li>Offer support rather than unsolicited advice</li>
             <li>No harassment, hate speech, or bullying</li>
-            <li>No promotional or commercial content</li>
-            <li>
-              Use your authentic identity to build trust within the community
-            </li>
           </ul>
           <Button asChild variant="outline">
             <Link href="/terms">Read Full Guidelines</Link>
