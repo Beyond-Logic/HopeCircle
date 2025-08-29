@@ -3,6 +3,15 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Heart, Users, Shield, MessageCircle } from "lucide-react";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "About | HopeCircle",
+  description:
+    "Learn about HopeCircle's mission to create a supportive community where people connect through shared experiences and find hope together.",
+  keywords:
+    "about HopeCircle, community mission, support network, our story, team",
+};
 
 export default function AboutPage() {
   return (

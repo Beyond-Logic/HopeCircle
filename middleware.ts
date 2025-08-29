@@ -27,7 +27,6 @@ export default async function middleware(req: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = req.nextUrl.pathname;
-  console.log("Middleware - Pathname:", pathname, "User:", user);
 
   // If not logged in
   if (!user) {

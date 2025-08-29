@@ -128,7 +128,6 @@ export function Settings() {
         avatar_url: avatarUrl ?? undefined,
       });
 
-      console.log("Profile update:", { ...data, avatar_url: avatarUrl });
       toast.success("Profile updated successfully!");
       refetch();
 
@@ -152,11 +151,10 @@ export function Settings() {
         throw new Error("Passwords do not match");
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { data: result, error } = await authService.updatePassword(
         data.newPassword
       );
-
-      console.log("Password update result:", result);
 
       if (error) {
         throw error;

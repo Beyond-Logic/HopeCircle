@@ -119,14 +119,10 @@ export function Profile() {
 
   const groupCount = userGroups?.pages?.[0]?.count ?? 0;
 
-  console.log("groups in profile", groups);
-
   // const error = isMe ? errorCurrentUser : errorOtherUser;
 
   const { data: followers } = useUserFollowers(user?.id);
   const { data: following, refetch } = useUserFollowing(user?.id);
-
-  console.log("following", "follower", following, followers);
 
   const isFollowing = following?.some((f) => f.id === profileData?.profile.id);
 
