@@ -45,9 +45,8 @@ const NotificationDropdown = () => {
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
 
-  const { notifications, count } = useNotifications(activeTab);
+  const { notifications } = useNotifications(activeTab);
 
-  console.log("unread count", count);
   const { unreadCount } = useNotificationUnreadCount();
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();

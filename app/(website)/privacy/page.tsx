@@ -2,6 +2,19 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy | HopeCircle",
+  description:
+    "Learn how HopeCircle protects your privacy and handles your personal information in our comprehensive Privacy Policy.",
+  keywords:
+    "privacy policy, data protection, personal information, privacy agreement",
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 
 export default function PrivacyPage() {
   return (

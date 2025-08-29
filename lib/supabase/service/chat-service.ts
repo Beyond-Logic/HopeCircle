@@ -298,11 +298,9 @@ export const chatService = {
     // Invalidate queries to refresh unread counts
     if (!error) {
       // You might want to trigger a query invalidation here
-      console.log(error);
     }
 
     /// it is returning null null
-    console.log(data, error, "check the mark as read ");
 
     /// it is returning null null
     return { data, error };

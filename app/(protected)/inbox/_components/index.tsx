@@ -52,8 +52,6 @@ export function Chat() {
 
   const chatUsers = useChatUsers(activeChats as []);
 
-  console.log("active chats", activeChats);
-
   // fetch user if not in following list
   const { data: externalUser, isLoading: isExternalUserLoading } = useUserById(
     messageUserId && !followingUsers?.find((f) => f.id === messageUserId)

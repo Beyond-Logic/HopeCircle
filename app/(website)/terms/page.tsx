@@ -2,6 +2,19 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Terms of Service | HopeCircle",
+  description:
+    "Read HopeCircle's Terms of Service to understand the guidelines and rules for using our supportive community platform.",
+  keywords:
+    "terms of service, user agreement, community guidelines, rules, policy",
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 
 export default function TermsPage() {
   return (

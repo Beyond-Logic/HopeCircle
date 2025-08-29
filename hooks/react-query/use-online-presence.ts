@@ -7,8 +7,6 @@ const supabase = createClient();
 export function useOnlineUsers() {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
 
-  console.log("online users", onlineUsers)
-
   useEffect(() => {
     const channel = supabase.channel("online-users", {
       config: {

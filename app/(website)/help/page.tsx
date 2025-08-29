@@ -3,6 +3,18 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, HelpCircle, Mail, MessageCircle } from "lucide-react";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Help Center | HopeCircle",
+  description:
+    "Get help with your HopeCircle account, learn how to use our features, and find answers to frequently asked questions.",
+  keywords: "help, support, FAQ, contact, how to use HopeCircle",
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 
 export default function HelpPage() {
   const faqs = [

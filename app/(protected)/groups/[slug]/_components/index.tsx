@@ -47,8 +47,6 @@ export function GroupDetail() {
       .then(setProfilePreview);
   }, [user?.profile?.avatar_url]);
 
-  console.log("group in details", group);
-
   const [page, setPage] = useState(0);
   const [loadingState, setLoadingState] = useState(false);
 

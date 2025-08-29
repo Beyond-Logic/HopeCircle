@@ -196,8 +196,6 @@ PostCardProps) {
   const { data } = usePostImages(post.images);
   const imageUrls = data;
 
-  console.log("post", post);
-
   useEffect(() => {
     if (showCommentsSection) {
       setShowComments(true);
