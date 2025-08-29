@@ -56,7 +56,7 @@ export function ForgotPassword() {
             </p>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="px-0">
             <div className="space-y-4">
               <Button asChild className="w-full">
                 <Link href="/login">
@@ -95,7 +95,7 @@ export function ForgotPassword() {
           </p>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="px-0">
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertDescription>{error}</AlertDescription>

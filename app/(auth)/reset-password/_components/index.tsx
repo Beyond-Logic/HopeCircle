@@ -97,7 +97,7 @@ export function ResetPassword() {
               with your new password.
             </p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-0">
             <Button asChild className="w-full">
               <Link href="/login">Sign In Now</Link>
             </Button>
@@ -120,7 +120,7 @@ export function ResetPassword() {
           </p>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="px-0">
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertDescription>{error}</AlertDescription>

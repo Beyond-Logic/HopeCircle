@@ -87,7 +87,7 @@ export function VerifyEmail() {
           </p>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="px-0">
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertDescription>{error}</AlertDescription>
