@@ -121,3 +121,7 @@
     @apply bg-background text-foreground;
   }
 }
+
+p, ul, li ol {
+  font-size: 15px;
+}

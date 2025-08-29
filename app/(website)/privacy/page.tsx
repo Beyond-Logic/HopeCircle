@@ -1,94 +1,95 @@
+import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+
 export default function PrivacyPage() {
   return (
-    <>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <h1 className="text-4xl font-bold text-foreground mb-8">
-          Privacy Policy
-        </h1>
+    <div className="container max-w-4xl py-10">
+      <Button variant="ghost" asChild className="mb-6">
+        <Link href="/">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
+        </Link>
+      </Button>
 
-        <div className="prose prose-gray max-w-none">
-          <p className="text-lg text-muted-foreground mb-8">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Privacy Policy</CardTitle>
+          <p className="text-muted-foreground">
             Last updated: {new Date().toLocaleDateString()}
           </p>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">
-              Introduction
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <section>
+            <h2 className="text-xl font-semibold mb-2">
+              1. Information We Collect
             </h2>
-            <p className="text-muted-foreground leading-relaxed">
-              At HopeCircle, we take your privacy seriously. This Privacy Policy
-              explains how we collect, use, disclose, and safeguard your
-              information when you use our community platform.
+            <p className="text-muted-foreground">
+              We collect information you provide directly to us, including:
             </p>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">
-              Information We Collect
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-medium text-foreground mb-2">
-                  Personal Information
-                </h3>
-                <p className="text-muted-foreground">
-                  We collect information you provide directly, such as your
-                  name, email address, genotype, and country when you create an
-                  account.
-                </p>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium text-foreground mb-2">
-                  Community Content
-                </h3>
-                <p className="text-muted-foreground">
-                  Posts, comments, and other content you share within the
-                  community are stored to provide the service.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">
-              How We Use Your Information
-            </h2>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-              <li>To provide and maintain our community platform</li>
-              <li>To connect you with relevant groups and resources</li>
-              <li>To send you important updates about the service</li>
-              <li>To improve our platform and user experience</li>
+            <ul className="list-disc pl-5 mt-2 space-y-1 text-muted-foreground">
+              <li>Account information (name, email address)</li>
+              <li>Content you post (stories, comments, support messages)</li>
+              <li>Communications with other members</li>
+              <li>Technical information about your device and usage</li>
             </ul>
           </section>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">
-              Data Security
+          <section>
+            <h2 className="text-xl font-semibold mb-2">
+              2. How We Use Your Information
             </h2>
-            <p className="text-muted-foreground leading-relaxed">
-              We implement appropriate security measures to protect your
-              personal information. However, no method of transmission over the
-              internet is 100% secure.
+            <p className="text-muted-foreground">We use your information to:</p>
+            <ul className="list-disc pl-5 mt-2 space-y-1 text-muted-foreground">
+              <li>Provide, maintain, and improve our services</li>
+              <li>Create and maintain your account</li>
+              <li>Connect you with supportive communities</li>
+              <li>Ensure a safe environment for all members</li>
+              <li>Communicate with you about updates and support resources</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold mb-2">
+              3. Information Sharing
+            </h2>
+            <p className="text-muted-foreground">
+              We do not sell your personal data. We may share information:
+            </p>
+            <ul className="list-disc pl-5 mt-2 space-y-1 text-muted-foreground">
+              <li>With your consent</li>
+              <li>With service providers who assist our operations</li>
+              <li>When required by law or to protect rights and safety</li>
+              <li>In anonymous, aggregated form for research purposes</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold mb-2">4. Your Choices</h2>
+            <p className="text-muted-foreground">You can:</p>
+            <ul className="list-disc pl-5 mt-2 space-y-1 text-muted-foreground">
+              <li>Update your account information</li>
+              <li>Control your privacy settings</li>
+              <li>Delete your account at any time</li>
+              <li>Opt-out of promotional communications</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold mb-2">5. Data Security</h2>
+            <p className="text-muted-foreground">
+              We implement security measures to protect your information, but no
+              system is completely secure.
             </p>
           </section>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">
-              Contact Us
-            </h2>
-            <p className="text-muted-foreground">
-              If you have questions about this Privacy Policy, please contact us
-              at{" "}
-              <a
-                href="mailto:privacy@hopecircle.com"
-                className="text-primary hover:underline"
-              >
-                privacy@hopecircle.com
-              </a>
+          <div className="pt-4 border-t">
+            <p className="text-sm text-muted-foreground">
+              For privacy concerns, contact us at privacy@hopecircle.com
             </p>
-          </section>
-        </div>
-      </div>
-    </>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
