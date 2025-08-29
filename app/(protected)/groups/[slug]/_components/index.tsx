@@ -277,14 +277,18 @@ export function GroupDetail() {
           {isMember && (
             <div className="space-y-4">
               {!loadingState && posts && posts.length > 0 ? (
-                posts.map((post) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    groupId={groupId}
-                    isGroup={true}
-                  />
-                ))
+                posts.map((post) => {
+                  const isAdmin = group.created_by === post.author.id;
+                  return (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      groupId={groupId}
+                      isGroup={true}
+                      isAdmin={isAdmin}
+                    />
+                  );
+                })
               ) : loadingState ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="animate-spin" />

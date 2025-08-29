@@ -339,51 +339,106 @@ export const groupService = {
       .from("posts")
       .select(
         `
-        *,
-        author:users!author_id(
+      *,
+      author:users!author_id(
+        id,
+        first_name,
+        username,
+        last_name,
+        avatar_url,
+        genotype,
+        country
+      ),
+      post_likes(
+        user:users!user_id(
           id,
           first_name,
-          username,
           last_name,
-          avatar_url,
-          genotype,
-          country
-        ),
-        post_likes(user_id),
-        comments(count),
-        post_tags(tagged_user:users!tagged_user_id(id, first_name, last_name, username))
-      `
+          username,
+          avatar_url
+        )
+      ),
+      comments(count),
+      post_tags(
+        tagged_user:users!tagged_user_id(
+          id,
+          first_name,
+          last_name,
+          username,
+          avatar_url
+        )
+      )
+    `
       )
       .eq("group_id", groupId)
       .order("created_at", { ascending: false }) // latest first
       .range(page * limit, (page + 1) * limit - 1);
 
     const { data, error } = await query;
-
     if (error) return { data: null, error };
 
-    // Add avatar previews for each post author
+    // ✅ hydrate avatar previews
     const postsWithAvatars = await Promise.all(
       (data ?? []).map(async (post) => {
-        let avatar_preview = null;
+        // author preview
+        let authorAvatar = null;
         if (post.author?.avatar_url) {
-          avatar_preview = await authService.getAvatarUrl(
-            post.author.avatar_url
-          );
+          authorAvatar = await authService.getAvatarUrl(post.author.avatar_url);
         }
+
+        // likes previews
+        const post_likes = await Promise.all(
+          //@ts-expect-error - no type
+          (post.post_likes ?? []).map(async (like) => {
+            let likeAvatar = null;
+            if (like.user?.avatar_url) {
+              likeAvatar = await authService.getAvatarUrl(like.user.avatar_url);
+            }
+            return {
+              ...like,
+              user: {
+                ...like.user,
+                avatar_preview: likeAvatar,
+              },
+            };
+          })
+        );
+
+        // tagged users previews
+        const post_tags = await Promise.all(
+          //@ts-expect-error - no type
+          (post.post_tags ?? []).map(async (tag) => {
+            let tagAvatar = null;
+            if (tag.tagged_user?.avatar_url) {
+              tagAvatar = await authService.getAvatarUrl(
+                tag.tagged_user.avatar_url
+              );
+            }
+            return {
+              ...tag,
+              tagged_user: {
+                ...tag.tagged_user,
+                avatar_preview: tagAvatar,
+              },
+            };
+          })
+        );
+
         return {
           ...post,
           author: {
             ...post.author,
-            avatar_preview,
+            avatar_preview: authorAvatar,
           },
+          post_likes,
+          post_tags,
         };
       })
     );
 
     return { data: postsWithAvatars, error: null };
   },
-
+  
   async deleteGroupImage(groupId: string, fileName: string) {
     // delete from storage
     const { error: storageError } = await supabase.storage
