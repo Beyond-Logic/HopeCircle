@@ -1,103 +1,90 @@
-/* eslint-disable react/no-unescaped-entities */
+import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function TermsPage() {
   return (
-    <>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <h1 className="text-4xl font-bold text-foreground mb-8">
-          Terms of Service
-        </h1>
+    <div className="container max-w-4xl py-10">
+      <Button variant="ghost" asChild className="mb-6">
+        <Link href="/">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
+        </Link>
+      </Button>
 
-        <div className="prose prose-gray max-w-none">
-          <p className="text-lg text-muted-foreground mb-8">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Terms of Service</CardTitle>
+          <p className="text-muted-foreground">
             Last updated: {new Date().toLocaleDateString()}
           </p>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">
-              Acceptance of Terms
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <section>
+            <h2 className="text-xl font-semibold mb-2">
+              1. Acceptance of Terms
             </h2>
-            <p className="text-muted-foreground leading-relaxed">
-              By accessing and using HopeCircle, you accept and agree to be
-              bound by the terms and provision of this agreement.
+            <p className="text-muted-foreground">
+              By accessing or using HopeCircle, you agree to be bound by these
+              Terms of Service and our Privacy Policy.
             </p>
           </section>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">
-              Community Guidelines
+          <section>
+            <h2 className="text-xl font-semibold mb-2">
+              2. Community Guidelines
             </h2>
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-medium text-foreground mb-2">
-                  Respectful Communication
-                </h3>
-                <p className="text-muted-foreground">
-                  All interactions must be respectful, supportive, and
-                  appropriate for a health community.
-                </p>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium text-foreground mb-2">
-                  Medical Advice
-                </h3>
-                <p className="text-muted-foreground">
-                  HopeCircle is not a substitute for professional medical
-                  advice. Always consult with healthcare providers for medical
-                  decisions.
-                </p>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium text-foreground mb-2">
-                  Privacy and Confidentiality
-                </h3>
-                <p className="text-muted-foreground">
-                  Respect the privacy of other community members. Do not share
-                  personal information without consent.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">
-              Prohibited Activities
-            </h2>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-              <li>Harassment, bullying, or discriminatory behavior</li>
-              <li>Sharing false or misleading medical information</li>
-              <li>Spam or promotional content unrelated to sickle cell</li>
-              <li>Violation of others' privacy or intellectual property</li>
+            <p className="text-muted-foreground">
+              HopeCircle is a supportive community. We require all members to:
+            </p>
+            <ul className="list-disc pl-5 mt-2 space-y-1 text-muted-foreground">
+              <li>Show respect and empathy to others</li>
+              <li>Provide supportive, constructive communication</li>
+              <li>Respect different opinions and experiences</li>
+              <li>Maintain confidentiality of shared personal stories</li>
+              <li>Not engage in harassment, hate speech, or bullying</li>
             </ul>
           </section>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">
-              Account Termination
+          <section>
+            <h2 className="text-xl font-semibold mb-2">
+              3. Content Responsibility
             </h2>
-            <p className="text-muted-foreground leading-relaxed">
-              We reserve the right to terminate accounts that violate these
-              terms or engage in behavior harmful to the community.
+            <p className="text-muted-foreground">
+              You are responsible for the content you post on HopeCircle. By
+              posting content, you grant us a license to display and distribute
+              that content.
             </p>
           </section>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">
-              Contact Us
+          <section>
+            <h2 className="text-xl font-semibold mb-2">
+              4. Account Termination
             </h2>
             <p className="text-muted-foreground">
-              If you have questions about these Terms of Service, please contact
-              us at{" "}
-              <a
-                href="mailto:legal@hopecircle.com"
-                className="text-primary hover:underline"
-              >
-                legal@hopecircle.com
-              </a>
+              We reserve the right to suspend or terminate accounts that violate
+              our community guidelines or terms of service.
             </p>
           </section>
-        </div>
-      </div>
-    </>
+
+          <section>
+            <h2 className="text-xl font-semibold mb-2">
+              5. Limitation of Liability
+            </h2>
+            <p className="text-muted-foreground">
+              HopeCircle is not liable for any indirect, incidental, or
+              consequential damages arising from your use of our service.
+            </p>
+          </section>
+
+          <div className="pt-4 border-t">
+            <p className="text-sm text-muted-foreground">
+              For questions about these terms, please contact us at
+              terms@hopecircle.com
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
