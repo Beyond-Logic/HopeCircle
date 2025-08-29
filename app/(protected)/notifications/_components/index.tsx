@@ -139,7 +139,7 @@ export function Notifications() {
         </button>
       </div>
 
-      {notifications.length === 0 ? (
+      {!isLoading && notifications.length === 0 ? (
         <div className="text-center py-12">
           <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium mb-2">No notifications yet</h3>
@@ -156,7 +156,8 @@ export function Notifications() {
                   key={notification.id}
                   className={cn(
                     "p-4 rounded-lg border bg-transparent hover:bg-destructive/5",
-                    !notification.is_read && "bg-destructive/5 border-destructive/20"
+                    !notification.is_read &&
+                      "bg-destructive/5 border-destructive/20"
                   )}
                 >
                   <div className="flex items-start justify-between">
