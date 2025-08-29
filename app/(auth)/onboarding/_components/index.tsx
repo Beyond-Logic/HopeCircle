@@ -76,7 +76,7 @@ export function Onboarding() {
           </p>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="px-0">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* First + Last Name */}
             <div className="grid grid-cols-2 gap-4">
