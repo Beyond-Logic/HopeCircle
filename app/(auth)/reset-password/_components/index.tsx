@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Heart, ArrowLeft, CheckCircle, Eye, EyeOff } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { authService } from "@/lib/supabase/service/auth-service";
 
 interface ResetPasswordFormData {
   password: string;
@@ -22,9 +23,12 @@ export function ResetPassword() {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isTokenValid, setIsTokenValid] = useState<boolean | null>(null);
+  const [isVerifyingToken, setIsVerifyingToken] = useState(true);
 
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+  const router = useRouter();
+  const code = searchParams.get("code");
 
   const {
     register,
@@ -35,39 +39,112 @@ export function ResetPassword() {
 
   const password = watch("password");
 
+  // For password reset, we don't need to verify the code upfront
+  // The code verification happens during the actual password update
+  useEffect(() => {
+    if (!code) {
+      setIsTokenValid(false);
+    } else {
+      setIsTokenValid(true);
+    }
+    setIsVerifyingToken(false);
+  }, [code]);
+
   const onSubmit = async (data: ResetPasswordFormData) => {
     setIsLoading(true);
     setError("");
 
     try {
-      // TODO: Implement Supabase password reset logic with token
-      console.log("Resetting password with token:", token);
-      console.log("New password:", data.password);
+      if (!code) {
+        throw new Error("Invalid reset code");
+      }
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const supabase = createClient();
 
-      // For testing, always succeed
+      // First, try to update the password directly
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: data.password,
+      });
+
+      if (updateError) {
+        // If that fails, try the OTP verification approach
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: code,
+          type: "recovery",
+        });
+
+        if (verifyError) {
+          throw new Error(
+            "Reset link has expired or is invalid. Please request a new one."
+          );
+        }
+
+        // If verification succeeds, try updating password again
+        const { error: secondUpdateError } = await supabase.auth.updateUser({
+          password: data.password,
+        });
+
+        if (secondUpdateError) {
+          throw secondUpdateError;
+        }
+      }
+
+      // ✅ LOG THE USER OUT USING YOUR AUTH SERVICE
+      const { error: signOutError } = await authService.signOut();
+
+      if (signOutError) {
+        console.error("Sign out error:", signOutError);
+        // Continue with success flow even if sign out fails
+      }
+
       setIsPasswordReset(true);
-    } catch (error) {
+
+      // Redirect to login after 3 seconds
+      setTimeout(() => {
+        router.push("/login");
+      }, 3000);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       console.error("Password reset error:", error);
       setError(
-        "Failed to reset password. Please try again or request a new reset link."
+        error.message ||
+          "Failed to reset password. Please try again or request a new reset link."
       );
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Show error if no token provided
-  if (!token) {
+  // Show loading state while checking code presence
+  if (isVerifyingToken) {
     return (
       <div className="p-8 md:p-12">
         <Card className="border-0 shadow-none">
           <CardHeader className="text-center space-y-4 px-0">
-            <CardTitle className="text-2xl font-bold">Invalid Reset Link</CardTitle>
+            <CardTitle className="text-2xl font-bold">
+              Verifying Reset Link
+            </CardTitle>
             <p className="text-muted-foreground">
-              This password reset link is invalid or has expired.
+              Please wait while we verify your reset link...
+            </p>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show error if no code provided
+  if (!code || !isTokenValid) {
+    return (
+      <div className="p-8 md:p-12">
+        <Card className="border-0 shadow-none">
+          <CardHeader className="text-center space-y-4 px-0">
+            <CardTitle className="text-2xl font-bold">
+              Invalid Reset Link
+            </CardTitle>
+            <p className="text-muted-foreground">
+              This password reset link is invalid or has expired. Please request
+              a new reset link.
             </p>
           </CardHeader>
           <CardContent>
@@ -89,12 +166,12 @@ export function ResetPassword() {
             <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle className="w-6 h-6 text-primary" />
             </div>
-            <CardTitle className="text-2xl">
+            <CardTitle className="text-2xl font-bold">
               Password Reset Successful
             </CardTitle>
             <p className="text-muted-foreground">
-              Your password has been successfully reset. You can now sign in
-              with your new password.
+              Your password has been successfully reset. You will be redirected
+              to the login page shortly.
             </p>
           </CardHeader>
           <CardContent className="px-0">
@@ -108,13 +185,13 @@ export function ResetPassword() {
   }
 
   return (
-    <div className="flex items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-md">
+    <div className="p-8 md:p-12">
+      <Card className="border-0 shadow-none">
         <CardHeader className="text-center">
           <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
             <Heart className="w-6 h-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl">Set New Password</CardTitle>
+          <CardTitle className="text-2xl font-bold">Set New Password</CardTitle>
           <p className="text-muted-foreground">
             Enter your new password below to complete the reset process
           </p>
@@ -129,7 +206,7 @@ export function ResetPassword() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
-              <Label htmlFor="password">New Password</Label>
+              {/* <Label htmlFor="password">New Password</Label> */}
               <div className="relative">
                 <Input
                   id="password"
@@ -146,7 +223,7 @@ export function ResetPassword() {
                         "Password must contain at least one uppercase letter, one lowercase letter, and one number",
                     },
                   })}
-                  placeholder="Enter your new password"
+                  placeholder="New Password"
                 />
                 <Button
                   type="button"
@@ -170,7 +247,7 @@ export function ResetPassword() {
             </div>
 
             <div>
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
+              {/* <Label htmlFor="confirmPassword">Confirm New Password</Label> */}
               <div className="relative">
                 <Input
                   id="confirmPassword"
@@ -180,7 +257,7 @@ export function ResetPassword() {
                     validate: (value) =>
                       value === password || "Passwords do not match",
                   })}
-                  placeholder="Confirm your new password"
+                  placeholder="Confirm New Password"
                 />
                 <Button
                   type="button"

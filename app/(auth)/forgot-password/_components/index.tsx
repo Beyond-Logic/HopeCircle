@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Heart, ArrowLeft, CheckCircle } from "lucide-react";
+import { authService } from "@/lib/supabase/service/auth-service";
 
 interface ForgotPasswordFormData {
   email: string;
@@ -30,12 +31,19 @@ export function ForgotPassword() {
     setIsLoading(true);
     setError("");
     try {
-      // TODO: Implement Supabase password reset logic
-      console.log("Password reset for:", data.email);
+      const { error } = await authService.resetPassword(data.email);
+
+      if (error) {
+        throw error;
+      }
+
       setIsEmailSent(true);
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       console.error("Password reset error:", error);
-      setError("Failed to send reset email. Please try again.");
+      setError(
+        error.message || "Failed to send reset email. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -104,7 +112,6 @@ export function ForgotPassword() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
-              {/* <Label htmlFor="email">Email</Label> */}
               <Input
                 id="email"
                 type="email"
