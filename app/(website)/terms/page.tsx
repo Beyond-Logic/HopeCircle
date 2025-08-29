@@ -43,6 +43,10 @@ export default function TermsPage() {
               <li>Respect different opinions and experiences</li>
               <li>Maintain confidentiality of shared personal stories</li>
               <li>Not engage in harassment, hate speech, or bullying</li>
+              <li>No promotional or commercial content</li>
+              <li>
+                Use your authentic identity to build trust within the community
+              </li>
             </ul>
           </section>
 
