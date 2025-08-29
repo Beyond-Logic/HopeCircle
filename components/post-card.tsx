@@ -175,8 +175,6 @@ PostCardProps) {
 
   const comments = commentsData?.data || [];
 
-  console.log("comments", comments);
-
   const currentUserId = user?.user.id || "";
 
   const isPostLiked = !!post.post_likes?.find(

@@ -164,9 +164,9 @@ export function LikesDisplay({ likes }: LikesDisplayProps) {
                           Mutual
                         </Badge>
                       )}
-                      <span>{like.user.genotype}</span>
+                      {/* <span>{like.user.genotype}</span>
                       <span>•</span>
-                      <span>{like.user.country}</span>
+                      <span>{like.user.country}</span> */}
                     </div>
                   </div>
                 </div>
