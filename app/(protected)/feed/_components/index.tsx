@@ -72,7 +72,7 @@ export function Feed() {
         },
         content: post.content,
         images: post.images || [],
-        group: post.group ? { id: post.group.id, name: post.group.name } : null,
+        group: post.group ? { id: post.group.id, name: post.group.name, type: post.group.type || "theme" } : null,
         createdAt: post.created_at,
         updatedAt: post.updated_at,
         likes: post.post_likes.length || 0,

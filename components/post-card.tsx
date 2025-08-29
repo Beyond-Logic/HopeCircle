@@ -32,6 +32,7 @@ import {
   Globe,
   Eye,
   Info,
+  MapPin,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
@@ -67,6 +68,8 @@ import {
 } from "@/hooks/react-query/use-posts-service";
 import { useIsUserInGroup } from "@/hooks/react-query/use-is-user-in-group";
 import { PostContent } from "./post-content";
+import { useUserFollowing } from "@/hooks/react-query/use-get-user-following";
+import { LikeInfo, LikesDisplay } from "./likes-display";
 
 interface Post {
   id: string;
@@ -83,6 +86,7 @@ interface Post {
   images?: string[];
   group?: {
     id: string;
+    type: "country" | "theme";
     name: string;
   } | null;
   taggedUsers?: Array<{ id: string; name: string }>;
@@ -90,7 +94,7 @@ interface Post {
   updatedAt: Date;
   likes: number;
   comments: number;
-  post_likes: Array<{ user_id: string }>;
+  post_likes: LikeInfo[];
   postTags?: Array<{ tagged_user: { id: string; username: string } }>;
 }
 
@@ -103,6 +107,7 @@ interface PostCardProps {
   profilePreview?: string;
   groupId?: string;
   isGroup?: boolean;
+  isAdmin?: boolean;
 }
 
 export function PostCard({
@@ -112,6 +117,7 @@ export function PostCard({
   isSinglePost,
   groupId,
   isGroup,
+  isAdmin,
 }: // profilePreview,
 PostCardProps) {
   const { data: user } = useCurrentUserProfile();
@@ -169,10 +175,12 @@ PostCardProps) {
 
   const comments = commentsData?.data || [];
 
+  console.log("comments", comments);
+
   const currentUserId = user?.user.id || "";
 
   const isPostLiked = !!post.post_likes?.find(
-    (like) => like.user_id === currentUserId
+    (like) => like?.user?.id === currentUserId
   );
 
   const [commentId, setCommentId] = useState("");
@@ -189,6 +197,8 @@ PostCardProps) {
   // 🔑 Convert storage keys → signed URLs
   const { data } = usePostImages(post.images);
   const imageUrls = data;
+
+  console.log("post", post);
 
   useEffect(() => {
     if (showCommentsSection) {
@@ -513,7 +523,7 @@ PostCardProps) {
         type: item.type,
         imageUrl: item.image_url,
         createdAt: item.created_at,
-        createdBy: item.creator_id,
+        createdBy: item.created_by,
       })) || [];
 
   const { data: followed } = useUserFollowers(user?.user.id);
@@ -579,6 +589,11 @@ PostCardProps) {
     setTaggedUsers((prev) => prev.filter((u) => u.id !== userId));
   };
 
+  const badgeBg =
+    post?.group?.type === "country"
+      ? "bg-primary/10 text-primary"
+      : "bg-secondary/10 text-secondary";
+
   return (
     <>
       <Card className="text-[15px] border-0 shadow-none">
@@ -603,6 +618,13 @@ PostCardProps) {
                   className="font-semibold hover:underline"
                 >
                   {post.author.name}
+                  {isGroup && isAdmin ? (
+                    <Badge className="bg-amber-400 text-black ml-2">
+                      Admin
+                    </Badge>
+                  ) : (
+                    ""
+                  )}
                 </Link>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <div className="hidden">
@@ -620,11 +642,13 @@ PostCardProps) {
                   <div className="flex items-center gap-1 mt-1">
                     <Users className="w-3 h-3 text-muted-foreground" />
                     <Link href={`/groups/${post.group.id}`}>
-                      <Badge
-                        variant="secondary"
-                        className="text-xs hover:bg-secondary/80"
-                      >
-                        {post.group.name}
+                      <Badge className={`${badgeBg} px-2 py-1 rounded`}>
+                        {post?.group.type === "country" ? (
+                          <MapPin className="w-3 h-3" />
+                        ) : (
+                          <Heart className="w-3 h-3" />
+                        )}
+                        {post?.group.name}
                       </Badge>
                     </Link>
                   </div>
@@ -1006,6 +1030,11 @@ PostCardProps) {
             </div>
           </div>
 
+          <LikesDisplay
+            likes={(post.post_likes && post.post_likes) || []}
+            postId={post.id}
+          />
+
           {/* Comments Section */}
           {showComments && (
             <div className="mt-4 pt-4 border-t space-y-4" id="showComments">
@@ -1041,7 +1070,6 @@ PostCardProps) {
 
               {/* Comments List */}
 
-              {/* Comments List */}
               <div className="space-y-3">
                 {comments?.length > 0 ? (
                   comments.map((comment) => {
@@ -1156,6 +1184,11 @@ PostCardProps) {
                                 Reply
                               </Button>
                             </div>
+
+                            <LikesDisplay
+                              likes={(comment.likes && comment.likes) || []}
+                              postId={comment.id}
+                            />
 
                             {/* Reply box */}
                             {replyingToId === comment.id && (
@@ -1315,6 +1348,15 @@ PostCardProps) {
                                                 </span>
                                               </Button>
                                             </div>
+
+                                            <LikesDisplay
+                                              likes={
+                                                (reply.likes &&
+                                                  reply.likes) ||
+                                                []
+                                              }
+                                              postId={reply.id}
+                                            />
                                           </div>
                                           <div>
                                             <DropdownMenu>

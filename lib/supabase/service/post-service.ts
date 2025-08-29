@@ -35,6 +35,8 @@ export const postService = {
   },
 
   // Get single post by ID
+
+  // Get single post by ID
   async getPostById(postId: string) {
     const { data, error } = await supabase
       .from("posts")
@@ -51,7 +53,15 @@ export const postService = {
         country
       ),
       group:groups(id, name, type),
-      post_likes(user_id),
+      post_likes(
+        user:users!user_id(
+          id,
+          first_name,
+          last_name,
+          username,
+          avatar_url
+        )
+      ),
       comments(count),
       post_tags(
         tagged_user:users!tagged_user_id(
@@ -69,19 +79,38 @@ export const postService = {
 
     if (error) return { data: null, error };
 
-    // ✅ Add avatar preview for author
-    let avatar_preview = null;
+    // ✅ hydrate avatar previews
+    let authorAvatar = null;
     if (data?.author?.avatar_url) {
-      avatar_preview = await authService.getAvatarUrl(data.author.avatar_url);
+      authorAvatar = await authService.getAvatarUrl(data.author.avatar_url);
     }
 
-    // ✅ Add avatar previews for tagged users
-    const postTagsWithAvatars = await Promise.all(
+    // likes previews
+    const post_likes = await Promise.all(
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (data?.post_likes ?? []).map(async (like: any) => {
+        let likeAvatar = null;
+        if (like.user?.avatar_url) {
+          likeAvatar = await authService.getAvatarUrl(like.user.avatar_url);
+        }
+        return {
+          ...like,
+          user: {
+            ...like.user,
+            avatar_preview: likeAvatar,
+          },
+        };
+      })
+    );
+
+    // tagged users previews
+    const post_tags = await Promise.all(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (data?.post_tags ?? []).map(async (tag: any) => {
-        let tag_avatar_preview = null;
-        if (tag?.tagged_user?.avatar_url) {
-          tag_avatar_preview = await authService.getAvatarUrl(
+        let tagAvatar = null;
+        if (tag.tagged_user?.avatar_url) {
+          tagAvatar = await authService.getAvatarUrl(
             tag.tagged_user.avatar_url
           );
         }
@@ -89,7 +118,7 @@ export const postService = {
           ...tag,
           tagged_user: {
             ...tag.tagged_user,
-            avatar_preview: tag_avatar_preview,
+            avatar_preview: tagAvatar,
           },
         };
       })
@@ -100,9 +129,10 @@ export const postService = {
         ...data,
         author: {
           ...data.author,
-          avatar_preview,
+          avatar_preview: authorAvatar,
         },
-        post_tags: postTagsWithAvatars,
+        post_likes,
+        post_tags,
       },
       error: null,
     };
@@ -119,11 +149,21 @@ export const postService = {
     let query = supabase.from("posts").select(
       `
     *,
-    author:users!author_id(id, first_name, username, last_name, avatar_url, genotype, country),
+    author:users!author_id(
+      id, first_name, username, last_name, avatar_url, genotype, country
+    ),
     group:groups(id, name, type),
-    post_likes(user_id),
+    post_likes(
+      user:users!user_id(
+        id, first_name, last_name, username, avatar_url
+      )
+    ),
     comments(count),
-    post_tags(tagged_user:users!tagged_user_id(id, first_name, last_name, username))
+    post_tags(
+      tagged_user:users!tagged_user_id(
+        id, first_name, last_name, username, avatar_url
+      )
+    )
   `
     );
 
@@ -160,26 +200,65 @@ export const postService = {
     const { data, error } = await query;
     if (error) return { data: [], error, hasMore: false };
 
-    // ✅ avatar previews
+    // ✅ hydrate avatar previews for all users
     const postsWithAvatars = await Promise.all(
       (data ?? []).map(async (post) => {
-        let avatar_preview = null;
+        // author preview
+        let authorAvatar = null;
         if (post.author?.avatar_url) {
-          avatar_preview = await authService.getAvatarUrl(
-            post.author.avatar_url
-          );
+          authorAvatar = await authService.getAvatarUrl(post.author.avatar_url);
         }
+
+        // likes previews
+        const post_likes = await Promise.all(
+          //@ts-expect-error - no type
+          (post.post_likes ?? []).map(async (like) => {
+            let likeAvatar = null;
+            if (like.user?.avatar_url) {
+              likeAvatar = await authService.getAvatarUrl(like.user.avatar_url);
+            }
+            return {
+              ...like,
+              user: {
+                ...like.user,
+                avatar_preview: likeAvatar,
+              },
+            };
+          })
+        );
+
+        // tagged users previews
+        const post_tags = await Promise.all(
+          //@ts-expect-error - no type
+          (post.post_tags ?? []).map(async (tag) => {
+            let tagAvatar = null;
+            if (tag.tagged_user?.avatar_url) {
+              tagAvatar = await authService.getAvatarUrl(
+                tag.tagged_user.avatar_url
+              );
+            }
+            return {
+              ...tag,
+              tagged_user: {
+                ...tag.tagged_user,
+                avatar_preview: tagAvatar,
+              },
+            };
+          })
+        );
+
         return {
           ...post,
           author: {
             ...post.author,
-            avatar_preview,
+            avatar_preview: authorAvatar,
           },
+          post_likes,
+          post_tags,
         };
       })
     );
 
-    // ✅ if we got `limit` items, assume there might be more
     return {
       data: postsWithAvatars,
       error: null,

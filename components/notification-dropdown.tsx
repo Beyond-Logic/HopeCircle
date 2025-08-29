@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Bell, Check, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,23 @@ import { cn } from "@/lib/utils";
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "unread">("all");
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if the screen is mobile size on mount and resize
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    // Initial check
+    checkIfMobile();
+
+    // Add event listener for window resize
+    window.addEventListener("resize", checkIfMobile);
+
+    // Cleanup
+    return () => window.removeEventListener("resize", checkIfMobile);
+  }, []);
 
   const { notifications, count } = useNotifications(activeTab);
 
@@ -108,28 +125,28 @@ const NotificationDropdown = () => {
     }
   };
 
- const getNotificationLink = (notification: Notification) => {
-   if (!notification.related_entity_type || !notification.related_entity_id) {
-     return "/notifications";
-   }
+  const getNotificationLink = (notification: Notification) => {
+    if (!notification.related_entity_type || !notification.related_entity_id) {
+      return "/notifications";
+    }
 
-   switch (notification.related_entity_type) {
-     case "user":
-       return `/profile/${notification.related_entity_id}`;
-     case "post":
-       return `/post/${notification.related_entity_id}/?showComments=true#showComments`;
-     case "comment":
-       return `/post/${notification.related_entity_id}?showComments=true#showComments`;
-     case "group":
-       // For group join notifications, link directly to the group members page
-       if (notification.type === "group_join") {
-         return `/groups/${notification.related_entity_id}`;
-       }
-       return `/groups/${notification.related_entity_id}`;
-     default:
-       return "/notifications";
-   }
- };
+    switch (notification.related_entity_type) {
+      case "user":
+        return `/profile/${notification.related_entity_id}`;
+      case "post":
+        return `/post/${notification.related_entity_id}/?showComments=true#showComments`;
+      case "comment":
+        return `/post/${notification.related_entity_id}?showComments=true#showComments`;
+      case "group":
+        // For group join notifications, link directly to the group members page
+        if (notification.type === "group_join") {
+          return `/groups/${notification.related_entity_id}`;
+        }
+        return `/groups/${notification.related_entity_id}`;
+      default:
+        return "/notifications";
+    }
+  };
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -147,7 +164,14 @@ const NotificationDropdown = () => {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="md:w-96 w-fit p-0" align="end" forceMount>
+      <DropdownMenuContent
+        className={cn(
+          "p-0",
+          isMobile ? "w-[calc(100vw-2rem)] mx-4" : "md:w-96 w-fit"
+        )}
+        align="end"
+        forceMount
+      >
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="font-semibold">Notifications</h3>
           <div className="flex items-center gap-2">
@@ -207,7 +231,6 @@ const NotificationDropdown = () => {
                   {group.notifications.map((notification) => (
                     <DropdownMenuItem
                       key={notification.id}
-                      // className="p-3 cursor-pointer flex flex-col items-start gap-1 border bg-transparent hover:bg-destructive/5"
                       className={cn(
                         "p-3 cursor-pointer flex flex-col items-start gap-1 bg-transparent hover:bg-destructive/5",
                         !notification.is_read &&
