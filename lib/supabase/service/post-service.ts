@@ -87,7 +87,6 @@ export const postService = {
 
     // likes previews
     const post_likes = await Promise.all(
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (data?.post_likes ?? []).map(async (like: any) => {
         let likeAvatar = null;
@@ -472,28 +471,35 @@ export const postService = {
   },
 
   // Get all posts by a specific user (with total count in one query)
+  // Get all posts by a specific user (with total count in one query)
   async getUserPosts(userId: string, page = 0, limit = 10) {
     const { data, error, count } = await supabase
       .from("posts")
       .select(
         `
-        *,
-        author:users!author_id(
-          id,
-          first_name,
-          username,
-          last_name,
-          avatar_url,
-          genotype,
-          country
-        ),
-        group:groups(id, name, type),
-        post_likes(user_id),
-        comments(count),
-        post_tags(
-          tagged_user:users!tagged_user_id(id, first_name, last_name, username)
+      *,
+      author:users!author_id(
+        id,
+        first_name,
+        username,
+        last_name,
+        avatar_url,
+        genotype,
+        country
+      ),
+      group:groups(id, name, type),
+      post_likes(
+        user:users!user_id(
+          id, first_name, last_name, username, avatar_url
         )
-      `,
+      ),
+      comments(count),
+      post_tags(
+        tagged_user:users!tagged_user_id(
+          id, first_name, last_name, username, avatar_url
+        )
+      )
+    `,
         { count: "exact" } // ✅ also return total count
       )
       .eq("author_id", userId)
@@ -502,25 +508,77 @@ export const postService = {
 
     if (error) return { data: null, count: 0, error };
 
-    // ✅ Add avatar previews
+    // ✅ Hydrate avatars for authors, likes, and tags
     const postsWithAvatars = await Promise.all(
       (data ?? []).map(async (post) => {
-        let avatar_preview = null;
+        // Author preview
+        let authorAvatar = null;
         if (post.author?.avatar_url) {
           try {
-            avatar_preview = await authService.getAvatarUrl(
+            authorAvatar = await authService.getAvatarUrl(
               post.author.avatar_url
             );
           } catch {
-            avatar_preview = null;
+            authorAvatar = null;
           }
         }
+
+        // Likes previews
+        const post_likes = await Promise.all(
+          //@ts-expect-error - supabase type inference
+          (post.post_likes ?? []).map(async (like) => {
+            let likeAvatar = null;
+            if (like.user?.avatar_url) {
+              try {
+                likeAvatar = await authService.getAvatarUrl(
+                  like.user.avatar_url
+                );
+              } catch {
+                likeAvatar = null;
+              }
+            }
+            return {
+              ...like,
+              user: {
+                ...like.user,
+                avatar_preview: likeAvatar,
+              },
+            };
+          })
+        );
+
+        // Tagged users previews
+        const post_tags = await Promise.all(
+          //@ts-expect-error - supabase type inference
+          (post.post_tags ?? []).map(async (tag) => {
+            let tagAvatar = null;
+            if (tag.tagged_user?.avatar_url) {
+              try {
+                tagAvatar = await authService.getAvatarUrl(
+                  tag.tagged_user.avatar_url
+                );
+              } catch {
+                tagAvatar = null;
+              }
+            }
+            return {
+              ...tag,
+              tagged_user: {
+                ...tag.tagged_user,
+                avatar_preview: tagAvatar,
+              },
+            };
+          })
+        );
+
         return {
           ...post,
           author: {
             ...post.author,
-            avatar_preview,
+            avatar_preview: authorAvatar,
           },
+          post_likes,
+          post_tags,
         };
       })
     );
