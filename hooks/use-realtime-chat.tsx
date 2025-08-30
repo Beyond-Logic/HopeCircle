@@ -14,6 +14,7 @@ interface UseRealtimeChatProps {
   otherUserId: string;
   username: string;
   otherUsername: string;
+  isSelfChat?: boolean;
 }
 
 export interface ChatMessage {
@@ -31,21 +32,26 @@ export function useRealtimeChat({
   otherUserId,
   username,
   otherUsername,
+  isSelfChat = false,
 }: UseRealtimeChatProps) {
   const supabase = createClient();
   const queryClient = useQueryClient();
   const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Add loading state
 
-  const roomName = chatService.getRoomName(currentUserId, otherUserId);
+  // For self-chat, we use a special room name and send to ourselves
+  const actualOtherUserId = isSelfChat ? currentUserId : otherUserId;
+  const actualOtherUsername = isSelfChat ? username : otherUsername;
+
+  const roomName = chatService.getRoomName(currentUserId, actualOtherUserId);
 
   // 1️⃣ Fetch initial messages with React Query
-  // 1️⃣ Fetch initial messages with React Query
-  const { data: messages = [] } = useQuery({
+  const { data: messages = [], isLoading: isQueryLoading } = useQuery({
     queryKey: ["messages", roomName],
     queryFn: async () => {
       const { data } = await chatService.fetchMessages(
         currentUserId,
-        otherUserId
+        actualOtherUserId
       );
       return (
         data?.map((m: any) => ({
@@ -56,7 +62,8 @@ export function useRealtimeChat({
           is_read: m.is_read,
           attachments: m.attachments || [],
           user: {
-            name: m.sender_id === currentUserId ? username : otherUsername,
+            name:
+              m.sender_id === currentUserId ? username : actualOtherUsername,
           },
         })) ?? []
       );
@@ -67,7 +74,7 @@ export function useRealtimeChat({
   useEffect(() => {
     const subscription = chatService.subscribeToRoom(
       currentUserId,
-      otherUserId,
+      actualOtherUserId,
       (msg) => {
         const mappedMsg: ChatMessage = {
           id: msg.id,
@@ -77,7 +84,8 @@ export function useRealtimeChat({
           is_read: msg.is_read,
           attachments: msg.attachments || [],
           user: {
-            name: msg.sender_id === currentUserId ? username : otherUsername,
+            name:
+              msg.sender_id === currentUserId ? username : actualOtherUsername,
           },
         };
 
@@ -94,15 +102,16 @@ export function useRealtimeChat({
     );
 
     setIsConnected(true);
+    setIsLoading(false); // Set loading to false when connected
 
     return () => {
       supabase.removeChannel(subscription);
     };
   }, [
     currentUserId,
-    otherUserId,
+    actualOtherUserId,
     username,
-    otherUsername,
+    actualOtherUsername,
     queryClient,
     supabase,
     roomName,
@@ -147,7 +156,7 @@ export function useRealtimeChat({
       try {
         const { data, error } = await chatService.sendMessage(
           currentUserId,
-          otherUserId,
+          actualOtherUserId, // For self-chat, this will be the same as currentUserId
           content,
           files
         );
@@ -179,8 +188,13 @@ export function useRealtimeChat({
         throw error;
       }
     },
-    [currentUserId, otherUserId, username, queryClient, roomName]
+    [currentUserId, actualOtherUserId, username, queryClient, roomName]
   );
 
-  return { messages, sendMessage, isConnected };
+  return {
+    messages,
+    sendMessage,
+    isConnected,
+    isLoading: isLoading || isQueryLoading,
+  };
 }
