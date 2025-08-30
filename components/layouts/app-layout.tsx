@@ -167,10 +167,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col space-y-1 leading-none">
-                    <p className="font-medium">
+                    <p className="font-medium break-all">
                       {profile?.first_name} {profile?.last_name}
                     </p>
-                    <p className="w-[200px] truncate text-sm text-muted-foreground">
+                    <p className="break-all text-sm text-muted-foreground">
                       {user?.email}
                     </p>
                   </div>

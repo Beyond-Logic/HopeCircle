@@ -455,7 +455,7 @@ export function Profile() {
             <CardContent className="space-y-4">
               <div>
                 <h4 className="font-semibold mb-2">Genotype</h4>
-                <Badge variant="secondary">
+                <Badge variant="outline">
                   {profileData.profile.genotype}
                 </Badge>
               </div>
