@@ -122,11 +122,14 @@ export function Profile() {
 
   // const error = isMe ? errorCurrentUser : errorOtherUser;
 
-  const { data: followers } = useUserFollowers(user?.id);
-  const { data: following, refetch } = useUserFollowing(user?.id);
+  const { data: followers, refetch: followersRefetch } = useUserFollowers(
+    profileData?.profile.id
+  );
+  const { data: following, refetch } = useUserFollowing(
+    profileData?.profile.id
+  );
 
-  const isFollowing = following?.some((f) => f.id === profileData?.profile.id);
-
+  const isFollowing = followers?.some((f) => f.id === user?.id);
   // ---------------------------
   // Set avatar preview when profile loads
   // ---------------------------
@@ -187,6 +190,7 @@ export function Profile() {
     try {
       await userService.followUser(user.id, profileData.profile.id);
       refetch();
+      followersRefetch();
     } catch (error) {
       console.error("Error following user:", error);
       toast.error("Failed to follow user. Please try again.");
@@ -201,6 +205,7 @@ export function Profile() {
     try {
       await userService.unfollowUser(user.id, profileData.profile.id);
       refetch();
+      followersRefetch();
     } catch (error) {
       console.error("Error un following user:", error);
       toast.error("Failed to unfollow user. Please try again.");
@@ -403,9 +408,7 @@ export function Profile() {
                           </Button>
                         </div>
                         <div className="absolute -top-1 right-0">
-                          {isAdmin && (
-                            <GroupRoleBadge role="admin" />
-                          )}
+                          {isAdmin && <GroupRoleBadge role="admin" />}
                         </div>
                       </CardContent>
                     </Card>
@@ -455,9 +458,7 @@ export function Profile() {
             <CardContent className="space-y-4">
               <div>
                 <h4 className="font-semibold mb-2">Genotype</h4>
-                <Badge variant="outline">
-                  {profileData.profile.genotype}
-                </Badge>
+                <Badge variant="outline">{profileData.profile.genotype}</Badge>
               </div>
               <div>
                 <h4 className="font-semibold mb-2">Location</h4>
