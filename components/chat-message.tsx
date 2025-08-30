@@ -37,6 +37,7 @@ interface ChatMessageItemProps {
   message: ChatMessage;
   isOwnMessage: boolean;
   showHeader: boolean;
+  isSelfChat?: boolean;
   onDelete?: () => void;
 }
 
@@ -87,6 +88,7 @@ export const ChatMessageItem = ({
   message,
   isOwnMessage,
   showHeader,
+  isSelfChat = false,
   onDelete,
 }: ChatMessageItemProps) => {
   const { user } = useAuth();
@@ -102,7 +104,7 @@ export const ChatMessageItem = ({
     try {
       await chatService.deleteMessage(message.id, user.id);
       queryClient.invalidateQueries({ queryKey: ["messages"] });
-      queryClient.invalidateQueries({ queryKey: ["activeChats", user.id] });
+      // queryClient.invalidateQueries({ queryKey: ["activeChats", user.id] });
       onDelete?.();
     } catch (error) {
       console.error("Error deleting message:", error);
@@ -141,7 +143,7 @@ export const ChatMessageItem = ({
             "items-end": isOwnMessage,
           })}
         >
-          {showHeader && (
+          {showHeader && !isSelfChat && (
             <div
               className={cn("flex items-center gap-2 text-xs px-3", {
                 "justify-end flex-row-reverse": isOwnMessage,
@@ -193,7 +195,6 @@ export const ChatMessageItem = ({
               </div>
             )}
 
-            {/* Message actions */}
             <div
               className={cn(
                 "absolute opacity-0 group-hover:opacity-100 transition-opacity flex gap-1",

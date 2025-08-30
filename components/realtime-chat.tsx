@@ -18,6 +18,7 @@ interface RealtimeChatProps {
   otherUserId: string;
   username: string;
   otherUsername: string;
+  isSelfChat?: boolean;
   onMessage?: (messages: ChatMessage[]) => void;
 }
 
@@ -26,16 +27,23 @@ export const RealtimeChat = ({
   otherUserId,
   username,
   otherUsername,
+  isSelfChat = false,
   onMessage,
 }: RealtimeChatProps) => {
   const { containerRef, scrollToBottom } = useChatScroll();
   const queryClient = useQueryClient();
 
-  const { messages, sendMessage, isConnected } = useRealtimeChat({
+  const {
+    messages,
+    sendMessage,
+    isConnected,
+    isLoading: isChatLoading,
+  } = useRealtimeChat({
     currentUserId,
-    otherUserId,
+    otherUserId: isSelfChat ? currentUserId : otherUserId, // For self chat, send to yourself
     username,
-    otherUsername,
+    otherUsername: isSelfChat ? username : otherUsername, // For self chat, use your own username
+    isSelfChat,
   });
 
   const [newMessage, setNewMessage] = useState("");
@@ -57,7 +65,7 @@ export const RealtimeChat = ({
 
   // ✅ mark messages as read whenever new ones come in
   useEffect(() => {
-    if (!messages.length) return;
+    if (!messages.length || isSelfChat) return; // Don't mark as read for self chat
 
     const roomName = chatService.getRoomName(currentUserId, otherUserId);
 
@@ -69,7 +77,7 @@ export const RealtimeChat = ({
     if (hasUnread) {
       chatService.markMessagesAsRead(roomName, currentUserId);
     }
-  }, [messages, currentUserId, otherUserId]);
+  }, [messages, currentUserId, otherUserId, isSelfChat]);
 
   const handleSendMessage = useCallback(
     async (e: React.FormEvent) => {
@@ -151,42 +159,65 @@ export const RealtimeChat = ({
     });
   };
 
+  // In RealtimeChat component, add:
+  useEffect(() => {
+    // Clear input when chat changes
+    setNewMessage("");
+    setSelectedFiles([]);
+    setUploadError(null);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, [currentUserId, otherUserId]); // Reset when chat changes
+
   // Allow sending with just files (no message)
   const canSend =
     isConnected && (newMessage.trim() || selectedFiles.length > 0);
 
   return (
-    <Card className="flex p-6 flex-col md:h-[700px] w-full bg-background text-foreground antialiased rounded-b-2xl rounded-t-none border-1">
+    <Card className="flex p-6 flex-col md:max-h-[700px] w-full bg-background text-foreground antialiased rounded-b-2xl rounded-t-none border-1">
       {/* Messages */}
       <div ref={containerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && !isConnected && (
-          <div className="text-center text-sm text-muted-foreground">
-            No messages yet. Start the conversation!
+        {isChatLoading ? (
+          // Show loading state while messages are being fetched
+          <div className="flex items-center justify-center h-40">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : messages.length === 0 ? (
+          // Show empty state when no messages
+          <div className="text-center text-sm text-muted-foreground py-8">
+            {isSelfChat
+              ? "Write down your thoughts, ideas, or feelings — just for you."
+              : "No messages yet. Start the conversation!"}
+          </div>
+        ) : (
+          // Show messages
+          <div className="space-y-1">
+            {messages.map((message, index) => {
+              const prevMessage = index > 0 ? messages[index - 1] : null;
+              const showHeader =
+                !prevMessage || prevMessage.user.name !== message.user.name;
+
+              return (
+                <div
+                  key={message.id}
+                  className="animate-in fade-in slide-in-from-bottom-4 duration-300"
+                >
+                  <ChatMessageItem
+                    message={message}
+                    isOwnMessage={message.user.name === username}
+                    showHeader={showHeader}
+                    onDelete={handleDeleteMessage}
+                    isSelfChat={isSelfChat}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
-        <div className="space-y-1">
-          {messages.map((message, index) => {
-            const prevMessage = index > 0 ? messages[index - 1] : null;
-            const showHeader =
-              !prevMessage || prevMessage.user.name !== message.user.name;
-
-            return (
-              <div
-                key={message.id}
-                className="animate-in fade-in slide-in-from-bottom-4 duration-300"
-              >
-                <ChatMessageItem
-                  message={message}
-                  isOwnMessage={message.user.name === username}
-                  showHeader={showHeader}
-                  onDelete={handleDeleteMessage}
-                />
-              </div>
-            );
-          })}
-        </div>
       </div>
-
       {/* Upload error */}
       {uploadError && (
         <Alert variant="destructive" className="mx-4 mb-2">
@@ -194,7 +225,6 @@ export const RealtimeChat = ({
           <AlertDescription className="text-sm">{uploadError}</AlertDescription>
         </Alert>
       )}
-
       {/* File previews */}
       {selectedFiles.length > 0 && (
         <div className="px-4 py-2 border-t border-border bg-muted/50">
@@ -222,7 +252,6 @@ export const RealtimeChat = ({
           </div>
         </div>
       )}
-
       {/* Input */}
       <form
         onSubmit={handleSendMessage}
@@ -258,7 +287,11 @@ export const RealtimeChat = ({
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder={`${
             selectedFiles.length > 0
-              ? `Add a message (optional)`
+              ? isSelfChat
+                ? "Write down your thoughts, ideas, or feelings — just for you. (optional)"
+                : "Add a message (optional)"
+              : isSelfChat
+              ? "Write down your thoughts, ideas, or feelings — just for you."
               : "Type a message..."
           }`}
           disabled={!isConnected}

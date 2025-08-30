@@ -237,11 +237,11 @@ export const chatService = {
   },
 
   // 🆕 Get all active chats for a user
-  // services/chat-service.ts
+
   async getUserActiveChats(userId: string) {
     const { data, error } = await supabase
       .from("messages")
-      .select("room_name, sender_id, receiver_id, created_at, content")
+      .select("room_name, sender_id, receiver_id, created_at, content, is_read")
       .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
       .order("created_at", { ascending: false });
 
@@ -256,12 +256,20 @@ export const chatService = {
       }
     }
 
-    // Attach "otherUserId" to each room
+    // Attach "otherUserId" to each room and identify self-chats
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return Object.values(uniqueRooms).map((chat: any) => {
       const otherUserId =
         chat.sender_id === userId ? chat.receiver_id : chat.sender_id;
-      return { ...chat, otherUserId };
+
+      // Check if this is a self-chat (user messaging themselves)
+      const isSelfChat = chat.sender_id === chat.receiver_id;
+
+      return {
+        ...chat,
+        otherUserId,
+        isSelfChat,
+      };
     });
   },
 
@@ -311,7 +319,8 @@ export const chatService = {
       .from("messages")
       .select("*", { count: "exact", head: true })
       .eq("receiver_id", userId)
-      .eq("is_read", false);
+      .eq("is_read", false)
+      .neq("sender_id", userId); // Exclude self-chat messages
 
     return { count: count ?? 0, error };
   },
