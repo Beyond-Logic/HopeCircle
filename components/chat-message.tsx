@@ -104,7 +104,7 @@ export const ChatMessageItem = ({
     try {
       await chatService.deleteMessage(message.id, user.id);
       queryClient.invalidateQueries({ queryKey: ["messages"] });
-      // queryClient.invalidateQueries({ queryKey: ["activeChats", user.id] });
+      queryClient.invalidateQueries({ queryKey: ["activeChats", user.id] });
       onDelete?.();
     } catch (error) {
       console.error("Error deleting message:", error);
