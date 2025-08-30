@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable @next/next/no-img-element */
 "use client";
@@ -70,6 +71,7 @@ import { useIsUserInGroup } from "@/hooks/react-query/use-is-user-in-group";
 import { PostContent } from "./post-content";
 import { useUserFollowing } from "@/hooks/react-query/use-get-user-following";
 import { LikeInfo, LikesDisplay } from "./likes-display";
+import { GroupRoleBadge } from "./group-role-badge";
 
 interface Post {
   id: string;
@@ -108,6 +110,8 @@ interface PostCardProps {
   groupId?: string;
   isGroup?: boolean;
   isAdmin?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  group?: any;
 }
 
 export function PostCard({
@@ -118,6 +122,7 @@ export function PostCard({
   groupId,
   isGroup,
   isAdmin,
+  group,
 }: // profilePreview,
 PostCardProps) {
   const { data: user } = useCurrentUserProfile();
@@ -590,6 +595,10 @@ PostCardProps) {
       ? "bg-primary/10 text-primary"
       : "bg-secondary/10 text-secondary";
 
+  const member = group?.group_members && group.group_members.find(
+    (member: any) => member?.user?.id === post?.author?.id
+  );
+
   return (
     <>
       <Card className="text-[15px] border-0 shadow-none">
@@ -615,11 +624,9 @@ PostCardProps) {
                 >
                   {post.author.name}
                   {isGroup && isAdmin ? (
-                    <Badge className="bg-amber-400 text-black ml-2">
-                      Admin
-                    </Badge>
+                    <GroupRoleBadge role={member?.role} />
                   ) : (
-                    ""
+                   isGroup && <GroupRoleBadge role={member?.role} />
                   )}
                 </Link>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -1347,8 +1354,7 @@ PostCardProps) {
 
                                             <LikesDisplay
                                               likes={
-                                                (reply.likes &&
-                                                  reply.likes) ||
+                                                (reply.likes && reply.likes) ||
                                                 []
                                               }
                                               postId={reply.id}

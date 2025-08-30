@@ -45,7 +45,7 @@ const NotificationDropdown = () => {
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
 
-  const { notifications } = useNotifications(activeTab);
+  const { notifications, isLoading } = useNotifications(activeTab);
 
   const { unreadCount } = useNotificationUnreadCount();
   const markAsRead = useMarkAsRead();
@@ -216,7 +216,7 @@ const NotificationDropdown = () => {
         </div>
 
         <ScrollArea className="h-96">
-          {groupedNotifications.length === 0 ? (
+          {!isLoading && groupedNotifications.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground">
               No notifications found
             </div>

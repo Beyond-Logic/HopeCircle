@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Heart } from "lucide-react";
+import { authService } from "@/lib/supabase/service/auth-service";
+import { useAuth } from "@/context/authContext";
+import { CountrySelect } from "@/components/ui/country-select";
+import { genotypes } from "@/lib/constants/genotypes";
 import {
   Select,
   SelectContent,
@@ -14,11 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Heart } from "lucide-react";
-import { authService } from "@/lib/supabase/service/auth-service";
-import { useAuth } from "@/context/authContext";
-import { CountrySelect } from "@/components/ui/country-select";
-import { genotypes } from "@/lib/constants/genotypes";
 
 interface OnboardingFormData {
   username: string;
@@ -37,10 +36,11 @@ export function Onboarding() {
   const {
     register,
     handleSubmit,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm<OnboardingFormData>();
+    control,
+    formState: { errors, isDirty, isValid },
+  } = useForm<OnboardingFormData>({
+    mode: "onChange", // validate + clear errors while typing
+  });
 
   const onSubmit = async (data: OnboardingFormData) => {
     setIsLoading(true);
@@ -81,7 +81,6 @@ export function Onboarding() {
             {/* First + Last Name */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                {/* <Label htmlFor="firstName">First Name</Label> */}
                 <Input
                   id="firstName"
                   placeholder="First Name"
@@ -97,7 +96,6 @@ export function Onboarding() {
                 )}
               </div>
               <div>
-                {/* <Label htmlFor="lastName">Last Name</Label> */}
                 <Input
                   id="lastName"
                   placeholder="Last Name"
@@ -116,7 +114,6 @@ export function Onboarding() {
 
             {/* Username */}
             <div>
-              {/* <Label htmlFor="username">Username</Label> */}
               <Input
                 id="username"
                 type="text"
@@ -140,28 +137,27 @@ export function Onboarding() {
                 </p>
               )}
             </div>
-            {/* Genotype */}
+
+            {/* Genotype (Controller) */}
             <div>
-              {/* <Label htmlFor="genotype" className="mb-2 ">
-                Genotype
-              </Label> */}
-              <Select onValueChange={(value) => setValue("genotype", value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Genotype" />
-                </SelectTrigger>
-                <SelectContent>
-                  {genotypes.map((genotype) => (
-                    <SelectItem key={genotype.value} value={genotype.value}>
-                      {genotype.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <input
-                type="hidden"
-                {...register("genotype", {
-                  required: "Please select your genotype",
-                })}
+              <Controller
+                name="genotype"
+                control={control}
+                rules={{ required: "Please select your genotype" }}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Genotype" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {genotypes.map((genotype) => (
+                        <SelectItem key={genotype.value} value={genotype.value}>
+                          {genotype.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               />
               {errors.genotype && (
                 <p className="text-sm text-destructive mt-1">
@@ -169,19 +165,20 @@ export function Onboarding() {
                 </p>
               )}
             </div>
-            {/* ✅ Country (with CountrySelect) */}
+
+            {/* Country (Controller) */}
             <div>
-              {/* <Label htmlFor="country">Country</Label> */}
-              <CountrySelect
-                value={watch("country")}
-                onChange={(value) => setValue("country", value)}
-                placeholder="Country"
-              />
-              <input
-                type="hidden"
-                {...register("country", {
-                  required: "Please select your country",
-                })}
+              <Controller
+                name="country"
+                control={control}
+                rules={{ required: "Please select your country" }}
+                render={({ field }) => (
+                  <CountrySelect
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Country"
+                  />
+                )}
               />
               {errors.country && (
                 <p className="text-sm text-destructive mt-1">
@@ -189,7 +186,13 @@ export function Onboarding() {
                 </p>
               )}
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+
+            {/* Submit */}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading || !isDirty || !isValid}
+            >
               {isLoading ? "Setting Up Profile..." : "Complete Setup"}
             </Button>
           </form>

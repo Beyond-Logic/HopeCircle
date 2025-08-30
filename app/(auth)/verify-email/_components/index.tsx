@@ -82,7 +82,7 @@ export function VerifyEmail() {
           </CardTitle>
           <p className="text-muted-foreground">
             {isVerified
-              ? "Your email has been successfully verified. You can now sign in to your account."
+              ? "Your email has been successfully verified."
               : "We couldn't verify your email address. Please try again or contact support."}
           </p>
         </CardHeader>
@@ -96,7 +96,7 @@ export function VerifyEmail() {
 
           <div className="space-y-3">
             <Button onClick={() => router.push("/login")} className="w-full">
-              {isVerified ? "Continue to Login" : "Go to Login"}
+              {isVerified ? "Redirecting..." : "Go to Login"}
             </Button>
 
             {!isVerified && (

@@ -22,6 +22,7 @@ import { User, MessageSquare, Loader2 } from "lucide-react";
 import { chatService } from "@/lib/supabase/service/chat-service";
 import { useOnlineUsers } from "@/hooks/react-query/use-online-presence";
 import { useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 
 // ✅ Relative time formatter
 function formatRelativeTime(date: string | Date) {
@@ -283,19 +284,21 @@ export function Chat() {
               >
                 ☰
               </Button>
-              <Avatar className="w-10 h-10 relative">
-                <AvatarImage
-                  src={selectedUser.avatar_preview}
-                  alt={selectedUser.username}
-                  className="rounded-full"
-                />
-                <AvatarFallback>
-                  <User className="w-5 h-5" />
-                </AvatarFallback>
-                {onlineUsers.has(selectedUser.id) && (
-                  <span className="absolute bottom-0 right-1.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
-                )}
-              </Avatar>
+              <Link href={`/profile/${selectedUser.username}`}>
+                <Avatar className="w-10 h-10 relative">
+                  <AvatarImage
+                    src={selectedUser.avatar_preview}
+                    alt={selectedUser.username}
+                    className="rounded-full"
+                  />
+                  <AvatarFallback>
+                    <User className="w-5 h-5" />
+                  </AvatarFallback>
+                  {onlineUsers.has(selectedUser.id) && (
+                    <span className="absolute bottom-0 right-1.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+                  )}
+                </Avatar>
+              </Link>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold">{selectedUser.username}</div>
                 {selectedUser.first_name && (

@@ -29,6 +29,7 @@ import { useUserFollowing } from "@/hooks/react-query/use-get-user-following";
 import { useUserGroups } from "@/hooks/react-query/use-user-groups";
 import { useUserPosts } from "@/hooks/react-query/use-user-posts";
 import { useUserFollowers } from "@/hooks/react-query/use-get-user-followers";
+import { GroupRoleBadge } from "@/components/group-role-badge";
 
 export function Profile() {
   const params = useParams();
@@ -232,7 +233,7 @@ export function Profile() {
                     {profileData.profile.last_name}
                   </h1>
                   <div className="flex flex-wrap items-center gap-4 text-muted-foreground mb-3 text-sm">
-                    <Badge variant="secondary">
+                    <Badge variant="outline">
                       {profileData.profile.genotype}
                     </Badge>
                     <div className="flex items-center gap-1">
@@ -403,9 +404,7 @@ export function Profile() {
                         </div>
                         <div className="absolute -top-1 right-0">
                           {isAdmin && (
-                            <Badge className="bg-amber-400 text-black rounded-lg">
-                              Admin
-                            </Badge>
+                            <GroupRoleBadge role="admin" />
                           )}
                         </div>
                       </CardContent>
@@ -456,7 +455,7 @@ export function Profile() {
             <CardContent className="space-y-4">
               <div>
                 <h4 className="font-semibold mb-2">Genotype</h4>
-                <Badge variant="secondary">
+                <Badge variant="outline">
                   {profileData.profile.genotype}
                 </Badge>
               </div>

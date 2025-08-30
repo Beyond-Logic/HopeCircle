@@ -172,8 +172,8 @@ export const authService = {
 
   // Create or update user profile
   async upsertUserProfile(profileData: {
-    id: string; // the auth user id (foreign key in your users table)
-    username: string; // <- new field for username
+    id: string;
+    username: string;
     first_name: string;
     last_name: string;
     genotype: string;
@@ -182,27 +182,45 @@ export const authService = {
     avatar_url?: string;
     role?: string;
   }) {
-    // Use Supabase's `upsert` which will insert if not exists, update if exists
-    const { data, error } = await supabase
-      .from("users")
-      .upsert(
-        {
-          id: profileData.id,
-          username: profileData.username, // <- include username in upsert
+    try {
+      // Update auth metadata FIRST
+      const { error: authError } = await supabase.auth.updateUser({
+        data: {
           first_name: profileData.first_name,
           last_name: profileData.last_name,
-          genotype: profileData.genotype,
-          country: profileData.country,
-          role: profileData.role,
-          bio: profileData.bio,
-          avatar_url: profileData.avatar_url,
+          username: profileData.username,
         },
-        { onConflict: "id" } // <- ensures uniqueness by id
-      )
-      .select()
-      .single();
+      });
 
-    return { data, error };
+      if (authError) {
+        console.error("Auth metadata update failed:", authError);
+        // You might choose to continue or throw here
+      }
+
+      // Then update the custom users table
+      const { data, error } = await supabase
+        .from("users")
+        .upsert(
+          {
+            id: profileData.id,
+            username: profileData.username,
+            first_name: profileData.first_name,
+            last_name: profileData.last_name,
+            genotype: profileData.genotype,
+            country: profileData.country,
+            role: profileData.role,
+            bio: profileData.bio,
+            avatar_url: profileData.avatar_url,
+          },
+          { onConflict: "id" }
+        )
+        .select()
+        .single();
+
+      return { data, error };
+    } catch (error) {
+      return { data: null, error };
+    }
   },
 
   // Upload avatar to Supabase Storage

@@ -28,6 +28,7 @@ import { useGroupPosts } from "@/hooks/react-query/use-group-posts";
 import { useJoinGroup } from "@/hooks/react-query/use-join-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { authService } from "@/lib/supabase/service/auth-service";
+import { GroupRoleBadge } from "@/components/group-role-badge";
 
 export function GroupDetail() {
   const { data: user } = useCurrentUserProfile();
@@ -36,6 +37,9 @@ export function GroupDetail() {
   const groupId = params.slug as string;
 
   const { data: group, isLoading, error } = useGetGroupById(groupId);
+
+  console.log("group", group);
+
   const { data: isMember } = useIsUserInGroup(groupId, user?.user.id as string);
   const { mutate: joinGroupMutate, isPending } = useJoinGroup();
 
@@ -284,6 +288,7 @@ export function GroupDetail() {
                       groupId={groupId}
                       isGroup={true}
                       isAdmin={isAdmin}
+                      group={group}
                     />
                   );
                 })
@@ -329,7 +334,7 @@ export function GroupDetail() {
                 {
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   group.group_members?.map((member: any, index: number) => {
-                    const isAdmin = group.created_by === member.user.id;
+                    const role = member?.role;
                     return (
                       <Link
                         href={`/profile/${member.user.username}`}
@@ -350,13 +355,7 @@ export function GroupDetail() {
                           <div className="flex-1">
                             <p className="font-medium">
                               {member.user.first_name} {member.user.last_name}{" "}
-                              {isAdmin ? (
-                                <Badge className="bg-amber-400 text-black">
-                                  Admin
-                                </Badge>
-                              ) : (
-                                ""
-                              )}
+                              <GroupRoleBadge role={role}/>
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {member.user.genotype} • Joined{" "}

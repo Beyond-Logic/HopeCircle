@@ -34,6 +34,7 @@ export default async function middleware(req: NextRequest) {
     if (
       pathname.startsWith("/feed") ||
       pathname.startsWith("/groups") ||
+      pathname.startsWith("/post") ||
       pathname.startsWith("/inbox") ||
       pathname.startsWith("/profile") ||
       pathname.startsWith("/settings") ||
@@ -63,6 +64,7 @@ export default async function middleware(req: NextRequest) {
   if (
     (pathname.startsWith("/feed") ||
       pathname.startsWith("/groups") ||
+      pathname.startsWith("/post") ||
       pathname.startsWith("/inbox") ||
       pathname.startsWith("/profile") ||
       pathname.startsWith("/settings")) &&
@@ -108,6 +110,7 @@ export const config = {
     "/onboarding",
     "/feed/:path*",
     "/groups/:path*",
+    "/post/:path*",
     "/inbox/:path*",
     "/profile/:path*",
     "/settings/:path*",

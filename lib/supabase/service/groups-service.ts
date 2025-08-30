@@ -152,6 +152,7 @@ export const groupService = {
           user:users!group_members_user_id_fkey(
             id, first_name, last_name, avatar_url, username, genotype, country
           ),
+          role,
           joined_at
         ),
         members_count:group_members(count)
@@ -227,6 +228,7 @@ export const groupService = {
     const { error: memberError } = await supabase.from("group_members").insert({
       group_id: data.id,
       user_id: creatorId, // must match auth.uid()
+      role: "admin"
     });
 
     if (memberError) {
