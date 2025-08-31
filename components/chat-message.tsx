@@ -97,6 +97,8 @@ export const ChatMessageItem = ({
   const [reportReason, setReportReason] = useState("");
   const [reportDescription, setReportDescription] = useState("");
 
+  const [showActions, setShowActions] = useState(false);
+
   const handleDelete = async () => {
     if (!user?.id) return;
 
@@ -160,6 +162,10 @@ export const ChatMessageItem = ({
           )}
 
           <div
+            onClick={() => setShowActions(!showActions)}
+            // onMouseEnter={() => setShowActions(true)}
+            onMouseOver={() => setShowActions(true)}
+            onMouseLeave={() => setShowActions(false)}
             className={cn(
               "py-2 px-3 rounded-xl text-sm w-fit relative",
               isOwnMessage
@@ -196,34 +202,40 @@ export const ChatMessageItem = ({
             )}
           </div>
 
-          {/* Action buttons positioned outside the message bubble */}
-          <div
-            className={cn(
-              "absolute opacity-0 group-hover:opacity-100 transition-opacity flex gap-1",
-              isOwnMessage ? "-right-4.5 top-2.5" : "-left-4.5 top-2.5"
-            )}
-          >
-            {isOwnMessage && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={() => setShowDeleteModal(true)}
+          {showActions && (
+            <>
+              {/* Action buttons positioned outside the message bubble */}
+              <div
+                onMouseEnter={() => setShowActions(true)}
+                onMouseLeave={() => setShowActions(false)}
+                className={cn(
+                  "absolute transition-opacity flex gap-1",
+                  isOwnMessage ? "-right-4.5 top-2.5" : "-left-4.5 top-2.5"
+                )}
               >
-                <Trash2 className="w-3 h-3" />
-              </Button>
-            )}
-            {!isOwnMessage && !isSelfChat && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={() => setShowReportModal(true)}
-              >
-                <Flag className="w-3 h-3" />
-              </Button>
-            )}
-          </div>
+                {isOwnMessage && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => setShowDeleteModal(true)}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                )}
+                {!isOwnMessage && !isSelfChat && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => setShowReportModal(true)}
+                  >
+                    <Flag className="w-3 h-3" />
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
