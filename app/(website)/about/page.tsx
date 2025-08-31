@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <div className="container max-w-4xl py-10">
+    <div className="container max-w-4xl px-4 py-10">
       <Button variant="ghost" asChild className="mb-6">
         <Link href="/">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
@@ -26,8 +26,8 @@ export default function AboutPage() {
         <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
           <Heart className="w-10 h-10 text-primary" />
         </div>
-        <h1 className="text-4xl font-bold mb-4">About HopeCircle</h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+        <h1 className="text-2xl font-bold mb-4">About HopeCircle</h1>
+        <p className="text-base text-muted-foreground max-w-2xl mx-auto px-4" >
           A supportive community where people connect through shared
           experiences, offer emotional support, and find hope together.
         </p>

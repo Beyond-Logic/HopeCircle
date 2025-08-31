@@ -42,6 +42,7 @@ interface ChatMessageItemProps {
 }
 
 const FileIcon = ({ type }: { type: string }) => {
+  // eslint-disable-next-line jsx-a11y/alt-text
   if (type.startsWith("image/")) return <Image className="w-4 h-4" />;
   if (type.startsWith("video/")) return <Video className="w-4 h-4" />;
   if (type === "application/pdf") return <FileText className="w-4 h-4" />;
