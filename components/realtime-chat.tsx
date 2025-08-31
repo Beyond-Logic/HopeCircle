@@ -287,11 +287,7 @@ export const RealtimeChat = ({
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder={`${
             selectedFiles.length > 0
-              ? isSelfChat
-                ? "Write down your thoughts, ideas, or feelings — just for you. (optional)"
-                : "Add a message (optional)"
-              : isSelfChat
-              ? "Write down your thoughts, ideas, or feelings — just for you."
+              ? "Add a message (optional)"
               : "Type a message..."
           }`}
           disabled={!isConnected}
