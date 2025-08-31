@@ -76,6 +76,21 @@ export function Chat() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // 👈 toggle for mobile
   const currentUser = user?.profile.username;
 
+  // Add useEffect to handle empty chat state
+  useEffect(() => {
+    // If all chats are deleted and we're on the "Just Me" chat, reset
+    if (activeChats?.length === 0 && selectedUser?.isSelf) {
+      setSelectedUser(null);
+
+      // Force a small delay to ensure state is cleared
+      setTimeout(() => {
+        queryClient.invalidateQueries({
+          queryKey: ["activeChats", user?.user.id],
+        });
+      }, 100);
+    }
+  }, [activeChats, selectedUser, queryClient, user?.user.id]);
+  
   useEffect(() => {
     if (selectedUser?.id && !selectedUser.isSelf) {
       const fetchLastActive = async () => {
@@ -373,11 +388,19 @@ export function Chat() {
               </Button>
 
               {selectedUser.isSelf ? (
-                <Avatar className="w-10 h-10 relative">
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    <UserCog className="w-5 h-5" />
-                  </AvatarFallback>
-                </Avatar>
+                <>
+                  <Avatar className="w-10 h-10 relative">
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      <UserCog className="w-5 h-5" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold">Just Me</div>
+                    <div className="text-xs text-muted-foreground">
+                      Message yourself
+                    </div>
+                  </div>
+                </>
               ) : (
                 <Link href={`/profile/${selectedUser.username}`}>
                   <Avatar className="w-10 h-10 relative">
@@ -398,7 +421,7 @@ export function Chat() {
 
               <div className="flex-1 min-w-0">
                 <div className="font-semibold">
-                  {selectedUser.isSelf ? "Just Me" : selectedUser.username}
+                  {selectedUser.isSelf ? "" : selectedUser.username}
                 </div>
                 {selectedUser.first_name &&
                   selectedUser.first_name !== "Just Me" && (
@@ -444,10 +467,13 @@ export function Chat() {
           !isLoading && (
             <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-40">
               <MessageSquare className="w-12 h-12 mb-3 text-muted-foreground" />
-              <h3 className="font-semibold text-lg">No chat selected</h3>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="font-semibold text-lg">No conversations yet</h3>
+              <p className="text-sm text-muted-foreground mb-4">
                 Start a new conversation or select one from the sidebar.
               </p>
+              <Button onClick={() => setSelectedUser(JUST_ME_USER)}>
+                Message Yourself
+              </Button>
             </div>
           )
         )}

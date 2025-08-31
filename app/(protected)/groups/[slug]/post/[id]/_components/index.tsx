@@ -66,8 +66,8 @@ export function Post() {
     return (
       <div className="text-center py-12">
         <h1 className="text-2xl font-bold mb-4">Post not found</h1>
-        <Link href="/feed">
-          <Button>Back to Feed</Button>
+        <Link href="/groups">
+          <Button>Back to Groups</Button>
         </Link>
       </div>
     );
@@ -79,7 +79,7 @@ export function Post() {
         <Link href={`/groups/${post?.group?.id}`}>
           <Button variant="ghost" size="sm">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Go back to {post?.group?.name}
+            {post?.group?.name}
           </Button>
         </Link>
       </div>

@@ -6,12 +6,27 @@ import { useChatScroll } from "@/hooks/use-chat-scroll";
 import { type ChatMessage, useRealtimeChat } from "@/hooks/use-realtime-chat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, Paperclip, Send, X } from "lucide-react";
+import {
+  AlertCircle,
+  Paperclip,
+  Send,
+  X,
+  MoreVertical,
+  CornerDownLeft,
+  MousePointerClick,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "./ui/card";
 import { chatService, FILE_LIMITS } from "@/lib/supabase/service/chat-service";
 import { useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "./ui/alert";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Textarea } from "./ui/textarea";
 
 interface RealtimeChatProps {
   currentUserId: string;
@@ -40,9 +55,9 @@ export const RealtimeChat = ({
     isLoading: isChatLoading,
   } = useRealtimeChat({
     currentUserId,
-    otherUserId: isSelfChat ? currentUserId : otherUserId, // For self chat, send to yourself
+    otherUserId: isSelfChat ? currentUserId : otherUserId,
     username,
-    otherUsername: isSelfChat ? username : otherUsername, // For self chat, use your own username
+    otherUsername: isSelfChat ? username : otherUsername,
     isSelfChat,
   });
 
@@ -50,10 +65,31 @@ export const RealtimeChat = ({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  const [sendWithEnter, setSendWithEnter] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("chat-send-method");
+      return saved ? saved === "enter" : true; // default to enter
+    }
+    return true;
+  });
   const [isLoading, setIsLoading] = useState(false);
+  const [showSendOptions, setShowSendOptions] = useState(false);
 
-  // Use ref to track the file input
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const optionsRef = useRef<HTMLDivElement>(null);
+
+  // Load send preference from localStorage
+  useEffect(() => {
+    const savedPreference = localStorage.getItem("chat-send-method");
+    if (savedPreference) {
+      setSendWithEnter(savedPreference === "enter");
+    }
+  }, []);
+
+  // Save preference to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem("chat-send-method", sendWithEnter ? "enter" : "click");
+  }, [sendWithEnter]);
 
   useEffect(() => {
     if (onMessage) onMessage(messages);
@@ -63,13 +99,10 @@ export const RealtimeChat = ({
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // ✅ mark messages as read whenever new ones come in
   useEffect(() => {
-    if (!messages.length || isSelfChat) return; // Don't mark as read for self chat
+    if (!messages.length || isSelfChat) return;
 
     const roomName = chatService.getRoomName(currentUserId, otherUserId);
-
-    // mark only if *I* am the receiver and not yet read
     const hasUnread = messages.some(
       (msg) => msg.receiver_id === currentUserId && !msg.is_read
     );
@@ -92,7 +125,6 @@ export const RealtimeChat = ({
         setSelectedFiles([]);
         setUploadError(null);
         setIsLoading(false);
-        // Reset file input after successful send
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -110,7 +142,6 @@ export const RealtimeChat = ({
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
-    // Validate files
     const validFiles: File[] = [];
     const errors: string[] = [];
 
@@ -142,58 +173,71 @@ export const RealtimeChat = ({
   const removeFile = (index: number) => {
     setSelectedFiles((prev) => {
       const newFiles = prev.filter((_, i) => i !== index);
-
-      // Reset file input when all files are removed
       if (newFiles.length === 0 && fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-
       return newFiles;
     });
   };
 
-  const handleDeleteMessage = () => {
+  const handleDeleteMessage = (deletedMessageId: string) => {
     queryClient.invalidateQueries({ queryKey: ["messages"] });
     queryClient.invalidateQueries({
       queryKey: ["activeChats", currentUserId],
     });
+
+    const isMostRecent =
+      messages.length > 0 &&
+      messages[messages.length - 1].id === deletedMessageId;
+
+    if (isMostRecent && onMessage) {
+      onMessage(messages.filter((m) => m.id !== deletedMessageId));
+    }
   };
 
-  // In RealtimeChat component, add:
   useEffect(() => {
-    // Clear input when chat changes
     setNewMessage("");
     setSelectedFiles([]);
     setUploadError(null);
-
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  }, [currentUserId, otherUserId]); // Reset when chat changes
+  }, [currentUserId, otherUserId]);
 
-  // Allow sending with just files (no message)
   const canSend =
     isConnected && (newMessage.trim() || selectedFiles.length > 0);
 
+  // Close options when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        optionsRef.current &&
+        !optionsRef.current.contains(event.target as Node)
+      ) {
+        setShowSendOptions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   return (
     <Card className="flex p-6 flex-col md:max-h-[700px] w-full bg-background text-foreground antialiased rounded-b-2xl rounded-t-none border-1">
-      {/* Messages */}
       <div ref={containerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
         {isChatLoading ? (
-          // Show loading state while messages are being fetched
           <div className="flex items-center justify-center h-40">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : messages.length === 0 ? (
-          // Show empty state when no messages
           <div className="text-center text-sm text-muted-foreground py-8">
             {isSelfChat
               ? "Write down your thoughts, ideas, or feelings — just for you."
               : "No messages yet. Start the conversation!"}
           </div>
         ) : (
-          // Show messages
           <div className="space-y-1">
             {messages.map((message, index) => {
               const prevMessage = index > 0 ? messages[index - 1] : null;
@@ -209,7 +253,7 @@ export const RealtimeChat = ({
                     message={message}
                     isOwnMessage={message.user.name === username}
                     showHeader={showHeader}
-                    onDelete={handleDeleteMessage}
+                    onDelete={() => handleDeleteMessage(message.id)}
                     isSelfChat={isSelfChat}
                   />
                 </div>
@@ -218,14 +262,14 @@ export const RealtimeChat = ({
           </div>
         )}
       </div>
-      {/* Upload error */}
+
       {uploadError && (
         <Alert variant="destructive" className="mx-4 mb-2">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="text-sm">{uploadError}</AlertDescription>
         </Alert>
       )}
-      {/* File previews */}
+
       {selectedFiles.length > 0 && (
         <div className="px-4 py-2 border-t border-border bg-muted/50">
           <div className="flex flex-wrap gap-2">
@@ -252,10 +296,10 @@ export const RealtimeChat = ({
           </div>
         </div>
       )}
-      {/* Input */}
+
       <form
         onSubmit={handleSendMessage}
-        className="flex w-full gap-2 border-t border-border p-4"
+        className="flex w-full gap-2 border-t border-border p-4 items-center"
       >
         <input
           title="files"
@@ -267,39 +311,136 @@ export const RealtimeChat = ({
           multiple
         />
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => fileInputRef.current?.click()}
-          className="mt-2"
-        >
-          <Paperclip className="w-4 h-4" />
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-2"
+              >
+                <Paperclip className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Attach files</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
-        <Input
-          className={cn(
-            "rounded-full bg-background text-sm transition-all duration-300",
-            canSend ? "w-[calc(100%-80px)]" : "w-[calc(100%-40px)]"
+        {/* Three-dot menu for send options */}
+        <div className="relative" ref={optionsRef}>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowSendOptions(!showSendOptions)}
+                  className="mt-2"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Send options</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {showSendOptions && (
+            <div className="absolute bottom-full mb-2 left-0 bg-background border rounded-lg shadow-lg z-10 p-2 w-48">
+              <div className="text-sm font-medium mb-2">Send Message</div>
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  className={`w-full text-left px-2 py-2 rounded text-sm flex items-center gap-2 ${
+                    sendWithEnter
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
+                  }`}
+                  onClick={() => {
+                    setSendWithEnter(true);
+                    setShowSendOptions(false);
+                  }}
+                >
+                  <CornerDownLeft className="w-4 h-4" />
+                  <div className="flex flex-col items-start">
+                    <span>Press Enter to Send</span>
+                    <span className="text-xs opacity-70">
+                      Pressing Enter will send message
+                    </span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  className={`w-full text-left px-2 py-2 rounded text-sm flex items-center gap-2 ${
+                    !sendWithEnter
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
+                  }`}
+                  onClick={() => {
+                    setSendWithEnter(false);
+                    setShowSendOptions(false);
+                  }}
+                >
+                  <MousePointerClick className="w-4 h-4" />
+                  <div className="flex flex-col items-start">
+                    <span>Click Send</span>
+                    <span className="text-xs opacity-70">
+                      Clicking Send will send message
+                    </span>
+                  </div>
+                </button>
+              </div>
+            </div>
           )}
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder={`${
-            selectedFiles.length > 0
-              ? isSelfChat
-                ? "Write down your thoughts, ideas, or feelings — just for you. (optional)"
-                : "Add a message (optional)"
-              : isSelfChat
-              ? "Write down your thoughts, ideas, or feelings — just for you."
-              : "Type a message..."
-          }`}
-          disabled={!isConnected}
-        />
+        </div>
+
+        {sendWithEnter ? (
+          <Input
+            className={cn(
+              "rounded-full bg-background text-sm transition-all duration-300 mt-2 flex-1"
+            )}
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage(e as unknown as React.FormEvent);
+              }
+            }}
+            placeholder={
+              selectedFiles.length > 0
+                ? "Add a message (optional)"
+                : "Type a message..."
+            }
+            disabled={!isConnected}
+          />
+        ) : (
+          <Textarea
+            className={cn(
+              "rounded-xl bg-background text-sm transition-all duration-300 mt-2 flex-1 resize-none px-4 py-2 focus:outline-none disabled:opacity-50"
+            )}
+            rows={1}
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder={
+              selectedFiles.length > 0
+                ? "Add a message (optional)"
+                : "Type a message..."
+            }
+            disabled={!isConnected}
+          />
+        )}
 
         {canSend && (
           <Button
-            className="aspect-square mt-1.5 rounded-full animate-in fade-in slide-in-from-right-4 duration-300"
+            className="aspect-square mt-2 rounded-full animate-in fade-in slide-in-from-right-4 duration-300"
             type="submit"
             disabled={!canSend || isLoading}
           >
