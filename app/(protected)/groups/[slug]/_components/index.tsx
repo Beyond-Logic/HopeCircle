@@ -355,7 +355,7 @@ export function GroupDetail() {
                           <div className="flex-1">
                             <p className="font-medium">
                               {member.user.first_name} {member.user.last_name}{" "}
-                              <GroupRoleBadge role={role}/>
+                              {role && <GroupRoleBadge role={role} />}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {member.user.genotype} • Joined{" "}
