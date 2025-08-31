@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { RealtimeChat } from "@/components/realtime-chat";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
 import { useUserFollowing } from "@/hooks/react-query/use-get-user-following";
@@ -50,6 +50,7 @@ export function Chat() {
     isSelf: true,
   };
 
+  const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const messageUserId = searchParams.get("message");
@@ -63,6 +64,11 @@ export function Chat() {
   const [lastActive, setLastActive] = useState<string | null>(null);
 
   const chatUsers = useChatUsers(activeChats as []);
+
+  // Use state instead of ref to track initialization
+  const [hasInitialized, setHasInitialized] = useState(false);
+
+  // Add a ref to track if we've already processed the initial selection
 
   // fetch user if not in following list
   const { data: externalUser, isLoading: isExternalUserLoading } = useUserById(
@@ -80,7 +86,6 @@ export function Chat() {
   const isJustMeUser = selectedUser?.id === "just-me";
 
   // REMOVED the problematic useEffect that was clearing selectedUser
-
   useEffect(() => {
     if (selectedUser?.id && !isJustMeUser) {
       const fetchLastActive = async () => {
@@ -100,12 +105,18 @@ export function Chat() {
     }
   }, [selectedUser, user?.user.id, isJustMeUser]);
 
-  // 👇 handle ?message=userid param OR auto-select most recent
+  // 👇 FIXED: handle ?message=userid param OR auto-select most recent
+
+  // 👇 Handle ?message=userid param OR auto-select most recent
   useEffect(() => {
+    if (isLoading || isExternalUserLoading) return;
+    if (hasInitialized) return;
+
     if (messageUserId) {
       if (messageUserId === "just-me") {
         setSelectedUser(JUST_ME_USER);
         setIsSidebarOpen(false);
+        setHasInitialized(true);
         return;
       }
 
@@ -113,14 +124,16 @@ export function Chat() {
         followingUsers?.find((f) => f.id === messageUserId) ||
         externalUser ||
         chatUsers[messageUserId];
-      setIsSidebarOpen(false);
+
       if (targetUser) {
         setSelectedUser(targetUser);
+        setIsSidebarOpen(false);
+        setHasInitialized(true);
         return;
       }
     }
 
-    // Default: auto-select most recent chat
+    // No message param → pick most recent
     if (activeChats?.length) {
       const sorted = [...activeChats].sort(
         (a, b) =>
@@ -128,18 +141,35 @@ export function Chat() {
       );
       const recentChat = sorted[0];
 
-      // Check if this is a self-chat
       if (recentChat.isSelfChat) {
         setSelectedUser(JUST_ME_USER);
+        setHasInitialized(true);
         return;
       }
 
       const recentUser =
         followingUsers?.find((f) => f.id === recentChat.otherUserId) ||
         chatUsers[recentChat.otherUserId];
-      if (recentUser) setSelectedUser(recentUser);
+
+      if (recentUser) {
+        setSelectedUser(recentUser);
+        setHasInitialized(true);
+        return;
+      }
     }
-  }, [messageUserId, followingUsers, externalUser, chatUsers, activeChats]);
+
+    // setHasInitialized(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    messageUserId,
+    followingUsers,
+    externalUser,
+    chatUsers,
+    activeChats,
+    isLoading,
+    isExternalUserLoading,
+    hasInitialized,
+  ]);
 
   useEffect(() => {
     if (selectedUser?.id && user?.user.id && !isJustMeUser) {
@@ -240,6 +270,9 @@ export function Chat() {
                     `}
                       onClick={() => {
                         setSelectedUser(JUST_ME_USER);
+                        if (messageUserId) {
+                          router.replace("/inbox"); // removes query but stays on page
+                        }
                         if (window.innerWidth < 768) setIsSidebarOpen(false);
                       }}
                     >
@@ -299,6 +332,9 @@ export function Chat() {
                       setSelectedUser(otherUser);
                       if (window.innerWidth < 768) setIsSidebarOpen(false);
 
+                      if (messageUserId) {
+                        router.replace("/inbox"); // removes query but stays on page
+                      }
                       if (user?.user.id) {
                         chatService.markMessagesAsRead(
                           chat.room_name,
