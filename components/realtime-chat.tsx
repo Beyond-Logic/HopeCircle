@@ -78,14 +78,6 @@ export const RealtimeChat = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const optionsRef = useRef<HTMLDivElement>(null);
 
-  // Load send preference from localStorage
-  useEffect(() => {
-    const savedPreference = localStorage.getItem("chat-send-method");
-    if (savedPreference) {
-      setSendWithEnter(savedPreference === "enter");
-    }
-  }, []);
-
   // Save preference to localStorage when it changes
   useEffect(() => {
     localStorage.setItem("chat-send-method", sendWithEnter ? "enter" : "click");
@@ -299,154 +291,159 @@ export const RealtimeChat = ({
 
       <form
         onSubmit={handleSendMessage}
-        className="flex w-full gap-2 border-t border-border p-4 items-center"
+        className="flex sm:flex-row flex-col-reverse w-full gap-2 border-t border-border p-4 sm:items-center"
       >
-        <input
-          title="files"
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileSelect}
-          className="hidden"
-          accept="image/*,video/*,.pdf,.doc,.docx,.txt,.rtf,.csv,.xls,.xlsx"
-          multiple
-        />
+        <div className="flex">
+          <div>
+            <input
+              title="files"
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              className="hidden"
+              accept="image/*,video/*,.pdf,.doc,.docx,.txt,.rtf,.csv,.xls,.xlsx"
+              multiple
+            />
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => fileInputRef.current?.click()}
-                className="mt-2"
-              >
-                <Paperclip className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Attach files</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="mt-2"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Attach files</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          {/* Three-dot menu for send options */}
+          <div className="relative" ref={optionsRef}>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowSendOptions(!showSendOptions)}
+                    className="mt-2"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Send options</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
-        {/* Three-dot menu for send options */}
-        <div className="relative" ref={optionsRef}>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowSendOptions(!showSendOptions)}
-                  className="mt-2"
-                >
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Send options</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          {showSendOptions && (
-            <div className="absolute bottom-full mb-2 left-0 bg-background border rounded-lg shadow-lg z-10 p-2 w-48">
-              <div className="text-sm font-medium mb-2">Send Message</div>
-              <div className="space-y-1">
-                <button
-                  type="button"
-                  className={`w-full text-left px-2 py-2 rounded text-sm flex items-center gap-2 ${
-                    sendWithEnter
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted"
-                  }`}
-                  onClick={() => {
-                    setSendWithEnter(true);
-                    setShowSendOptions(false);
-                  }}
-                >
-                  <CornerDownLeft className="w-4 h-4" />
-                  <div className="flex flex-col items-start">
-                    <span>Press Enter to Send</span>
-                    <span className="text-xs opacity-70">
-                      Pressing Enter will send message
-                    </span>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  className={`w-full text-left px-2 py-2 rounded text-sm flex items-center gap-2 ${
-                    !sendWithEnter
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted"
-                  }`}
-                  onClick={() => {
-                    setSendWithEnter(false);
-                    setShowSendOptions(false);
-                  }}
-                >
-                  <MousePointerClick className="w-4 h-4" />
-                  <div className="flex flex-col items-start">
-                    <span>Click Send</span>
-                    <span className="text-xs opacity-70">
-                      Clicking Send will send message
-                    </span>
-                  </div>
-                </button>
+            {showSendOptions && (
+              <div className="absolute bottom-full mb-2 left-0 bg-background border rounded-lg shadow-lg z-10 p-2 w-48">
+                <div className="text-sm font-medium mb-2">Send Message</div>
+                <div className="space-y-1">
+                  <button
+                    type="button"
+                    className={`w-full text-left px-2 py-2 rounded text-sm flex items-center gap-2 ${
+                      sendWithEnter
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    }`}
+                    onClick={() => {
+                      setSendWithEnter(true);
+                      setShowSendOptions(false);
+                    }}
+                  >
+                    <CornerDownLeft className="w-4 h-4" />
+                    <div className="flex flex-col items-start">
+                      <span>Press Enter to Send</span>
+                      <span className="text-xs opacity-70">
+                        Pressing Enter will send message
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    className={`w-full text-left px-2 py-2 rounded text-sm flex items-center gap-2 ${
+                      !sendWithEnter
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    }`}
+                    onClick={() => {
+                      setSendWithEnter(false);
+                      setShowSendOptions(false);
+                    }}
+                  >
+                    <MousePointerClick className="w-4 h-4" />
+                    <div className="flex flex-col items-start">
+                      <span>Click Send</span>
+                      <span className="text-xs opacity-70">
+                        Clicking Send will send message
+                      </span>
+                    </div>
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        {sendWithEnter ? (
-          <Input
-            className={cn(
-              "rounded-full bg-background text-sm transition-all duration-300 mt-2 flex-1"
-            )}
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage(e as unknown as React.FormEvent);
+        <div className="flex items-center gap-2 w-full">
+          {sendWithEnter ? (
+            <Input
+              className={cn(
+                "rounded-full bg-background text-sm transition-all duration-300 mt-2 flex-1"
+              )}
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage(e as unknown as React.FormEvent);
+                }
+              }}
+              placeholder={
+                selectedFiles.length > 0
+                  ? "Add a message (optional)"
+                  : "Type a message..."
               }
-            }}
-            placeholder={
-              selectedFiles.length > 0
-                ? "Add a message (optional)"
-                : "Type a message..."
-            }
-            disabled={!isConnected}
-          />
-        ) : (
-          <Textarea
-            className={cn(
-              "rounded-xl bg-background text-sm transition-all duration-300 mt-2 flex-1 resize-none px-4 py-2 focus:outline-none disabled:opacity-50"
-            )}
-            rows={1}
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder={
-              selectedFiles.length > 0
-                ? "Add a message (optional)"
-                : "Type a message..."
-            }
-            disabled={!isConnected}
-          />
-        )}
+              disabled={!isConnected}
+            />
+          ) : (
+            <Textarea
+              className={cn(
+                "rounded-xl bg-background text-sm transition-all duration-300 mt-2 flex-1 resize-none px-4 py-2 focus:outline-none disabled:opacity-50"
+              )}
+              rows={1}
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder={
+                selectedFiles.length > 0
+                  ? "Add a message (optional)"
+                  : "Type a message..."
+              }
+              disabled={!isConnected}
+            />
+          )}
 
-        {canSend && (
-          <Button
-            className="aspect-square mt-2 rounded-full animate-in fade-in slide-in-from-right-4 duration-300"
-            type="submit"
-            disabled={!canSend || isLoading}
-          >
-            <Send className="size-4" />
-          </Button>
-        )}
+          {canSend && (
+            <Button
+              className="aspect-square mt-2 rounded-full animate-in fade-in slide-in-from-right-4 duration-300"
+              type="submit"
+              disabled={!canSend || isLoading}
+            >
+              <Send className="size-4" />
+            </Button>
+          )}
+        </div>
       </form>
     </Card>
   );
