@@ -40,16 +40,16 @@ function formatRelativeTime(date: string | Date) {
   return d.toLocaleDateString();
 }
 
-// Special user object for "Just me" chat
-const JUST_ME_USER = {
-  id: "just-me",
-  username: "Just Me",
-  first_name: "Just Me",
-  avatar_preview: "",
-  isSelf: true,
-};
-
 export function Chat() {
+  // Special user object for "Just me" chat
+  const JUST_ME_USER = {
+    id: "just-me",
+    username: "Just Me",
+    first_name: "Just Me",
+    avatar_preview: "",
+    isSelf: true,
+  };
+
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const messageUserId = searchParams.get("message");
@@ -73,26 +73,16 @@ export function Chat() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // 👈 toggle for mobile
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const currentUser = user?.profile.username;
 
-  // Add useEffect to handle empty chat state
-  useEffect(() => {
-    // If all chats are deleted and we're on the "Just Me" chat, reset
-    if (activeChats?.length === 0 && selectedUser?.isSelf) {
-      setSelectedUser(null);
+  // Helper function to check if selected user is "Just Me"
+  const isJustMeUser = selectedUser?.id === "just-me";
 
-      // Force a small delay to ensure state is cleared
-      setTimeout(() => {
-        queryClient.invalidateQueries({
-          queryKey: ["activeChats", user?.user.id],
-        });
-      }, 100);
-    }
-  }, [activeChats, selectedUser, queryClient, user?.user.id]);
-  
+  // REMOVED the problematic useEffect that was clearing selectedUser
+
   useEffect(() => {
-    if (selectedUser?.id && !selectedUser.isSelf) {
+    if (selectedUser?.id && !isJustMeUser) {
       const fetchLastActive = async () => {
         const { data } = await chatService.getUserLastActive(selectedUser.id);
         if (data?.last_active) {
@@ -101,14 +91,14 @@ export function Chat() {
       };
       fetchLastActive();
     }
-  }, [selectedUser]);
+  }, [selectedUser, isJustMeUser]);
 
   useEffect(() => {
-    if (selectedUser?.id && user?.user.id && !selectedUser.isSelf) {
+    if (selectedUser?.id && user?.user.id && !isJustMeUser) {
       const roomName = chatService.getRoomName(user.user.id, selectedUser.id);
       chatService.markMessagesAsRead(roomName, user.user.id);
     }
-  }, [selectedUser, user?.user.id]);
+  }, [selectedUser, user?.user.id, isJustMeUser]);
 
   // 👇 handle ?message=userid param OR auto-select most recent
   useEffect(() => {
@@ -152,14 +142,10 @@ export function Chat() {
   }, [messageUserId, followingUsers, externalUser, chatUsers, activeChats]);
 
   useEffect(() => {
-    if (selectedUser?.id && user?.user.id && !selectedUser.isSelf) {
+    if (selectedUser?.id && user?.user.id && !isJustMeUser) {
       const roomName = chatService.getRoomName(user.user.id, selectedUser.id);
-
-      // Mark messages as read with a small delay to ensure UI is ready
       const timer = setTimeout(() => {
         chatService.markMessagesAsRead(roomName, user.user.id);
-
-        // Invalidate active chats query to refresh unread counts
         queryClient.invalidateQueries({
           queryKey: ["activeChats", user.user.id],
         });
@@ -167,10 +153,9 @@ export function Chat() {
           queryKey: ["unreadCount", user.user.id],
         });
       }, 100);
-
       return () => clearTimeout(timer);
     }
-  }, [selectedUser, user?.user.id, queryClient]);
+  }, [selectedUser, user?.user.id, queryClient, isJustMeUser]);
 
   const onlineUsers = useOnlineUsers();
 
@@ -210,7 +195,7 @@ export function Chat() {
                   chatUsers[userId];
                 if (u) {
                   setSelectedUser(u);
-                  if (window.innerWidth < 768) setIsSidebarOpen(false); // auto-close on mobile
+                  if (window.innerWidth < 768) setIsSidebarOpen(false);
                 }
               }}
             >
@@ -242,17 +227,17 @@ export function Chat() {
               activeChats?.map((chat: any) => {
                 // Handle self-chat
                 if (chat.isSelfChat) {
-                  const isActive = selectedUser?.isSelf; // This checks if the selected user is the self-chat user
+                  const isActive = isJustMeUser;
                   return (
                     <Card
                       key={chat.room_name}
                       className={`p-3 cursor-pointer border transition rounded-xl
-            ${
-              isActive
-                ? "bg-primary/10 border-primary shadow-sm"
-                : "hover:bg-muted"
-            }
-          `}
+                      ${
+                        isActive
+                          ? "bg-primary/10 border-primary shadow-sm"
+                          : "hover:bg-muted"
+                      }
+                    `}
                       onClick={() => {
                         setSelectedUser(JUST_ME_USER);
                         if (window.innerWidth < 768) setIsSidebarOpen(false);
@@ -301,18 +286,19 @@ export function Chat() {
                   <Card
                     key={chat.room_name}
                     className={`p-3 cursor-pointer border transition rounded-xl
-          ${
-            isActive
-              ? "bg-primary/10 border-primary shadow-sm"
-              : "hover:bg-muted"
-          }
-          ${hasUnread && !isActive ? "bg-blue-50 border-blue-200" : ""}
-        `}
+                    ${
+                      isActive
+                        ? "bg-primary/10 border-primary shadow-sm"
+                        : "hover:bg-muted"
+                    }
+                    ${
+                      hasUnread && !isActive ? "bg-blue-50 border-blue-200" : ""
+                    }
+                  `}
                     onClick={() => {
                       setSelectedUser(otherUser);
                       if (window.innerWidth < 768) setIsSidebarOpen(false);
 
-                      // Mark as read when selecting the chat
                       if (user?.user.id) {
                         chatService.markMessagesAsRead(
                           chat.room_name,
@@ -368,7 +354,6 @@ export function Chat() {
       </aside>
 
       {/* Main Chat Area */}
-
       <main
         className={`flex-1 flex flex-col relative ${
           isSidebarOpen ? "md:block hidden" : "block"
@@ -387,7 +372,7 @@ export function Chat() {
                 ☰
               </Button>
 
-              {selectedUser.isSelf ? (
+              {isJustMeUser ? (
                 <>
                   <Avatar className="w-10 h-10 relative">
                     <AvatarFallback className="bg-primary text-primary-foreground">
@@ -421,7 +406,7 @@ export function Chat() {
 
               <div className="flex-1 min-w-0">
                 <div className="font-semibold">
-                  {selectedUser.isSelf ? "" : selectedUser.username}
+                  {isJustMeUser ? "" : selectedUser.username}
                 </div>
                 {selectedUser.first_name &&
                   selectedUser.first_name !== "Just Me" && (
@@ -429,7 +414,7 @@ export function Chat() {
                       {selectedUser.first_name} {selectedUser.last_name}
                     </div>
                   )}
-                {!selectedUser.isSelf && (
+                {!isJustMeUser && (
                   <div className="text-xs text-muted-foreground">
                     {onlineUsers.has(selectedUser.id) ? (
                       <span className="text-green-600">Online now</span>
@@ -446,14 +431,10 @@ export function Chat() {
             <div className="flex-1 overflow-y-auto pb-40">
               <RealtimeChat
                 currentUserId={user?.user.id as string}
-                otherUserId={
-                  selectedUser.isSelf ? user?.user.id : selectedUser.id
-                }
+                otherUserId={isJustMeUser ? user?.user.id : selectedUser.id}
                 username={currentUser as string}
-                otherUsername={
-                  selectedUser.isSelf ? "Just Me" : selectedUser.username
-                }
-                isSelfChat={selectedUser.isSelf}
+                otherUsername={isJustMeUser ? "Just Me" : selectedUser.username}
+                isSelfChat={isJustMeUser}
               />
             </div>
           </>
