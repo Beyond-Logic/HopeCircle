@@ -595,9 +595,11 @@ PostCardProps) {
       ? "bg-primary/10 text-primary"
       : "bg-secondary/10 text-secondary";
 
-  const member = group?.group_members && group.group_members.find(
-    (member: any) => member?.user?.id === post?.author?.id
-  );
+  const member =
+    group?.group_members &&
+    group.group_members.find(
+      (member: any) => member?.user?.id === post?.author?.id
+    );
 
   return (
     <>
@@ -626,7 +628,8 @@ PostCardProps) {
                   {isGroup && isAdmin ? (
                     <GroupRoleBadge role={member?.role} />
                   ) : (
-                   isGroup && <GroupRoleBadge role={member?.role} />
+                    isGroup &&
+                    member?.role && <GroupRoleBadge role={member?.role} />
                   )}
                 </Link>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
