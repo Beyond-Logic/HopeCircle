@@ -42,7 +42,6 @@ interface ChatMessageItemProps {
 }
 
 const FileIcon = ({ type }: { type: string }) => {
-  // eslint-disable-next-line jsx-a11y/alt-text
   if (type.startsWith("image/")) return <Image className="w-4 h-4" />;
   if (type.startsWith("video/")) return <Video className="w-4 h-4" />;
   if (type === "application/pdf") return <FileText className="w-4 h-4" />;
@@ -97,7 +96,6 @@ export const ChatMessageItem = ({
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportDescription, setReportDescription] = useState("");
-  const [showActions, setShowActions] = useState(false); // 👈 for mobile toggle
 
   const handleDelete = async () => {
     if (!user?.id) return;
@@ -135,12 +133,12 @@ export const ChatMessageItem = ({
   return (
     <>
       <div
-        className={`flex mt-2 ${
+        className={`flex mt-2 group ${
           isOwnMessage ? "justify-end" : "justify-start"
         }`}
       >
         <div
-          className={cn("max-w-[85%] w-fit flex flex-col gap-1", {
+          className={cn("max-w-[85%] w-fit flex flex-col gap-1 relative", {
             "items-end": isOwnMessage,
           })}
         >
@@ -163,12 +161,11 @@ export const ChatMessageItem = ({
 
           <div
             className={cn(
-              "py-2 px-3 rounded-xl text-sm w-fit group relative cursor-pointer",
+              "py-2 px-3 rounded-xl text-sm w-fit relative",
               isOwnMessage
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-foreground"
             )}
-            onClick={() => setShowActions((prev) => !prev)} // 👈 toggle actions on tap
           >
             {message.content && (
               <div className="mb-2 whitespace-pre-line">{message.content}</div>
@@ -197,44 +194,35 @@ export const ChatMessageItem = ({
                 ))}
               </div>
             )}
+          </div>
 
-            <div
-              className={cn(
-                "absolute flex gap-1 transition-opacity",
-                isOwnMessage ? "-top-2 -right-4" : "-top-0 -left-4",
-                // show on hover (desktop) OR if tapped (mobile)
-                showActions
-                  ? "opacity-100"
-                  : "opacity-0 group-hover:opacity-100"
-              )}
-            >
-              {isOwnMessage && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={(e) => {
-                    e.stopPropagation(); // prevent toggle
-                    setShowDeleteModal(true);
-                  }}
-                >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-              )}
-              {!isOwnMessage && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={(e) => {
-                    e.stopPropagation(); // prevent toggle
-                    setShowReportModal(true);
-                  }}
-                >
-                  <Flag className="w-3 h-3" />
-                </Button>
-              )}
-            </div>
+          {/* Action buttons positioned outside the message bubble */}
+          <div
+            className={cn(
+              "absolute opacity-0 group-hover:opacity-100 transition-opacity flex gap-1",
+              isOwnMessage ? "-right-4.5 top-2.5" : "-left-4.5 top-2.5"
+            )}
+          >
+            {isOwnMessage && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setShowDeleteModal(true)}
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            )}
+            {!isOwnMessage && !isSelfChat && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setShowReportModal(true)}
+              >
+                <Flag className="w-3 h-3" />
+              </Button>
+            )}
           </div>
         </div>
       </div>
