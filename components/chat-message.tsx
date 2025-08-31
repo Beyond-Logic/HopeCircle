@@ -168,8 +168,9 @@ export const ChatMessageItem = ({
                 : "bg-muted text-foreground"
             )}
           >
-            {message.content && <div className="mb-2">{message.content}</div>}
-
+            {message.content && (
+              <div className="mb-2 whitespace-pre-line">{message.content}</div>
+            )}
             {message.attachments && message.attachments.length > 0 && (
               <div className="space-y-2">
                 {message.attachments.map((attachment, index) => (
