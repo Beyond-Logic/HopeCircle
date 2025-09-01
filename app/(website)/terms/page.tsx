@@ -97,7 +97,7 @@ export default function TermsPage() {
           <div className="pt-4 border-t">
             <p className="text-sm text-muted-foreground">
               For questions about these terms, please contact us at
-              terms@hopecircle.com
+              contact@hopecircle.net
             </p>
           </div>
         </CardContent>

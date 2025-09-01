@@ -93,7 +93,7 @@ export default function HelpPage() {
               help.
             </p>
             <Button asChild variant="outline">
-              <a href="mailto:support@hopecircle.com">Email Us</a>
+              <a href="mailto:contact@hopecircle.net">Email Us</a>
             </Button>
           </CardContent>
         </Card>
