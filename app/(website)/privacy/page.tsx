@@ -98,7 +98,7 @@ export default function PrivacyPage() {
 
           <div className="pt-4 border-t">
             <p className="text-sm text-muted-foreground">
-              For privacy concerns, contact us at privacy@hopecircle.com
+              For privacy concerns, contact us at contact@hopecircle.net
             </p>
           </div>
         </CardContent>
