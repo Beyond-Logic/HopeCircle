@@ -44,6 +44,11 @@ export function LikesDisplay({ likes }: LikesDisplayProps) {
 
   if (!likes || likes.length === 0) return null;
 
+  // Check if a user is followed by current user
+  const isFollowing = (userId: string) => {
+    return following?.some((follow) => follow.id === userId) || false;
+  };
+
   // Get current user's likes
   const currentUserLike = likes.find(
     (like) => like?.user?.id === currentUser?.user.id
@@ -54,46 +59,92 @@ export function LikesDisplay({ likes }: LikesDisplayProps) {
     (like) => like?.user.id !== currentUser?.user?.id
   );
 
-  // Format the like text based on who liked it
+  // Get followed users from other likes
+  const followedLikes = otherLikes.filter((like) => isFollowing(like.user.id));
+
+  // Format the like text based on who liked it (Instagram style)
+
   const getLikeText = () => {
-    if (likes?.length === 1) {
+    if (likes.length === 1) {
       if (currentUserLike) {
         return "You liked this";
       }
-      return `${likes[0].user?.first_name} liked this`;
-    }
-
-    if (likes?.length === 2) {
-      if (currentUserLike) {
-        return `You and ${otherLikes[0].user.first_name} liked this`;
+      // For single like from someone else
+      const singleLike = likes[0];
+      if (isFollowing(singleLike.user.id)) {
+        return `${singleLike.user.first_name} liked this`;
       }
-      return `${likes[0].user?.first_name} and ${likes[1].user.first_name} liked this`;
+      // For single like from someone not followed
+      return "1 like";
     }
 
-    if (likes.length === 3) {
+    if (likes.length === 2) {
       if (currentUserLike) {
-        return `You, ${otherLikes[0].user.first_name} and ${otherLikes[1].user.first_name} liked this`;
+        // You + 1 other (show name if followed, otherwise just "1 other")
+        const otherLike = otherLikes[0];
+        if (isFollowing(otherLike.user.id)) {
+          return `You and ${otherLike.user.first_name} liked this`;
+        }
+        return "You and 1 other liked this";
       }
-      return `${likes[0].user.first_name}, ${likes[1].user.first_name} and ${likes[2].user.first_name} liked this`;
+      // Two others (show names if followed, otherwise just "2 others")
+      const firstFollowed = isFollowing(likes[0].user.id);
+      const secondFollowed = isFollowing(likes[1].user.id);
+
+      if (firstFollowed && secondFollowed) {
+        return `${likes[0].user.first_name} and ${likes[1].user.first_name} liked this`;
+      } else if (firstFollowed) {
+        return `${likes[0].user.first_name} and 1 other liked this`;
+      } else if (secondFollowed) {
+        return `${likes[1].user.first_name} and 1 other liked this`;
+      }
+      return "2 others liked this";
     }
 
-    if (likes.length > 3) {
+    if (likes.length >= 3) {
       if (currentUserLike) {
-        return `You, ${otherLikes[0].user.first_name} and ${
+        // You + others
+        if (followedLikes.length === 0) {
+          return `You and ${otherLikes.length} others liked this`;
+        }
+
+        const firstFollowed = followedLikes[0];
+        if (followedLikes.length === 1) {
+          return `You, ${firstFollowed.user.first_name} and ${
+            otherLikes.length - 1
+          } others liked this`;
+        }
+
+        const secondFollowed = followedLikes[1];
+        return `You, ${firstFollowed.user.first_name}, ${
+          secondFollowed.user.first_name
+        } and ${otherLikes.length - 2} others liked this`;
+      }
+
+      // Only others
+      if (followedLikes.length === 0) {
+        return `${likes.length} others liked this`;
+      }
+
+      if (followedLikes.length === 1) {
+        return `${followedLikes[0].user.first_name} and ${
           otherLikes.length - 1
         } others liked this`;
       }
-      return `${likes[0].user.first_name}, ${likes[1].user.first_name} and ${
-        likes.length - 2
-      } others liked this`;
+
+      if (followedLikes.length === 2) {
+        return `${followedLikes[0].user.first_name}, ${
+          followedLikes[1].user.first_name
+        } and ${otherLikes.length - 2} others liked this`;
+      }
+
+      // More than 2 followed users, show first 2
+      return `${followedLikes[0].user.first_name}, ${
+        followedLikes[1].user.first_name
+      } and ${otherLikes.length - 2} others liked this`;
     }
 
     return "";
-  };
-
-  // Check if a user is followed by current user
-  const isFollowing = (userId: string) => {
-    return following?.some((follow) => follow.id === userId) || false;
   };
 
   // Check if users follow each other (mutual)
@@ -164,9 +215,6 @@ export function LikesDisplay({ likes }: LikesDisplayProps) {
                           Mutual
                         </Badge>
                       )}
-                      {/* <span>{like.user.genotype}</span>
-                      <span>•</span>
-                      <span>{like.user.country}</span> */}
                     </div>
                   </div>
                 </div>
