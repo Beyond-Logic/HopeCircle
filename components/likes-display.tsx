@@ -64,7 +64,15 @@ export function LikesDisplay({ likes }: LikesDisplayProps) {
 
   // Format the like text based on who liked it (Instagram style)
 
+  // Format the like text based on who liked it (Instagram style)
+
+  // Format the like text based on who liked it (Instagram style)
   const getLikeText = () => {
+    // Get non-followed users from other likes
+    const nonFollowedLikes = otherLikes.filter(
+      (like) => !isFollowing(like.user.id)
+    );
+
     if (likes.length === 1) {
       if (currentUserLike) {
         return "You liked this";
@@ -105,43 +113,50 @@ export function LikesDisplay({ likes }: LikesDisplayProps) {
       if (currentUserLike) {
         // You + others
         if (followedLikes.length === 0) {
-          return `You and ${otherLikes.length} others liked this`;
+          return `You and ${nonFollowedLikes.length} others liked this`;
         }
 
         const firstFollowed = followedLikes[0];
         if (followedLikes.length === 1) {
-          return `You, ${firstFollowed.user.first_name} and ${
-            otherLikes.length - 1
-          } others liked this`;
+          if (nonFollowedLikes.length === 0) {
+            return `You and ${firstFollowed.user.first_name} liked this`;
+          }
+          return `You, ${firstFollowed.user.first_name} and ${nonFollowedLikes.length} others liked this`;
         }
 
         const secondFollowed = followedLikes[1];
-        return `You, ${firstFollowed.user.first_name}, ${
-          secondFollowed.user.first_name
-        } and ${otherLikes.length - 2} others liked this`;
+        if (nonFollowedLikes.length === 0) {
+          return `You, ${firstFollowed.user.first_name} and ${secondFollowed.user.first_name} liked this`;
+        }
+        return `You, ${firstFollowed.user.first_name}, ${secondFollowed.user.first_name} and ${nonFollowedLikes.length} others liked this`;
       }
 
       // Only others
       if (followedLikes.length === 0) {
-        return `${likes.length} others liked this`;
+        return `${nonFollowedLikes.length} others liked this`;
       }
 
       if (followedLikes.length === 1) {
-        return `${followedLikes[0].user.first_name} and ${
-          otherLikes.length - 1
-        } others liked this`;
+        if (nonFollowedLikes.length === 0) {
+          return `${followedLikes[0].user.first_name} liked this`;
+        }
+        return `${followedLikes[0].user.first_name} and ${nonFollowedLikes.length} others liked this`;
       }
 
       if (followedLikes.length === 2) {
-        return `${followedLikes[0].user.first_name}, ${
-          followedLikes[1].user.first_name
-        } and ${otherLikes.length - 2} others liked this`;
+        if (nonFollowedLikes.length === 0) {
+          return `${followedLikes[0].user.first_name} and ${followedLikes[1].user.first_name} liked this`;
+        }
+        return `${followedLikes[0].user.first_name}, ${followedLikes[1].user.first_name} and ${nonFollowedLikes.length} others liked this`;
       }
 
       // More than 2 followed users, show first 2
-      return `${followedLikes[0].user.first_name}, ${
-        followedLikes[1].user.first_name
-      } and ${otherLikes.length - 2} others liked this`;
+      if (nonFollowedLikes.length === 0) {
+        return `${followedLikes[0].user.first_name}, ${
+          followedLikes[1].user.first_name
+        } and ${followedLikes.length - 2} others liked this`;
+      }
+      return `${followedLikes[0].user.first_name}, ${followedLikes[1].user.first_name} and ${nonFollowedLikes.length} others liked this`;
     }
 
     return "";
