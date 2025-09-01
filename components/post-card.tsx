@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react/no-unescaped-entities */
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
@@ -97,7 +96,14 @@ interface Post {
   likes: number;
   comments: number;
   post_likes: LikeInfo[];
-  postTags?: Array<{ tagged_user: { id: string; username: string } }>;
+  postTags?: Array<{
+    tagged_user: {
+      id: string;
+      username: string;
+      first_name: string;
+      last_name: string;
+    };
+  }>;
 }
 
 interface PostCardProps {
@@ -157,7 +163,12 @@ PostCardProps) {
   const [replyText, setReplyText] = useState("");
 
   const [taggedUsers, setTaggedUsers] = useState<
-    Array<{ id: string; username: string }>
+    Array<{
+      id: string;
+      username: string;
+      first_name: string;
+      last_name: string;
+    }>
   >([]);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [tagQuery, setTagQuery] = useState("");
@@ -395,6 +406,8 @@ PostCardProps) {
     }
   };
 
+  const { data: followedUsers } = useUserFollowing(user?.user.id as string);
+
   const { mutateAsync: updatePost, isPending: isPostUpdatePending } =
     useUpdatePost();
 
@@ -411,6 +424,7 @@ PostCardProps) {
         content: contentValue.trim(),
         images: updatedImages,
         group_id: selectedGroupId !== "your-timeline" ? selectedGroupId : null,
+        tagged_users: taggedUsers.map((user) => user.id),
       };
 
       const { data, error } = await updatePost({ postId: post.id, updates });
@@ -430,6 +444,32 @@ PostCardProps) {
   const cancelEdit = () => {
     setContent(post.content);
     setIsEditing(false);
+    // Reset tagged users to original state
+    setTaggedUsers(
+      post.postTags
+        ? post.postTags
+            .map((item) => {
+              if (!item.tagged_user?.id || !item.tagged_user?.username)
+                return null;
+              return {
+                id: item.tagged_user.id,
+                username: item.tagged_user.username,
+                first_name: item.tagged_user.first_name || "",
+                last_name: item.tagged_user.last_name || "",
+              };
+            })
+            .filter(
+              (
+                user
+              ): user is {
+                id: string;
+                username: string;
+                first_name: string;
+                last_name: string;
+              } => user !== null
+            )
+        : []
+    );
   };
 
   const { mutate: deletePost, isPending: isDeletePending } = useDeletePost();
@@ -527,9 +567,7 @@ PostCardProps) {
         createdBy: item.created_by,
       })) || [];
 
-  const { data: followed } = useUserFollowers(user?.user.id);
-
-  const followedUsers = followed || [];
+  // const { data: followed } = useUserFollowers(user?.user.id);
 
   const [content, setContent] = useState(post.content || "");
   const contentValue = content;
@@ -544,10 +582,19 @@ PostCardProps) {
               return {
                 id: item.tagged_user.id,
                 username: item.tagged_user.username,
+                first_name: item.tagged_user.first_name || "",
+                last_name: item.tagged_user.last_name || "",
               };
             })
             .filter(
-              (user): user is { id: string; username: string } => user !== null
+              (
+                user
+              ): user is {
+                id: string;
+                username: string;
+                first_name: string;
+                last_name: string;
+              } => user !== null
             )
         : []
     );
@@ -556,34 +603,65 @@ PostCardProps) {
   const handleContentChange = (value: string) => {
     setContent(value);
 
+    // Find the position of the last @ symbol
     const atIndex = value.lastIndexOf("@");
+
     if (atIndex !== -1) {
-      const query = value.slice(atIndex + 1);
-      if (query.length > 0 && !query.includes(" ")) {
-        setTagQuery(query);
-        setShowTagSuggestions(true);
-      } else {
-        setShowTagSuggestions(false);
+      // Check if the @ is at the start of a word (preceded by space or start of string)
+      const isAtWordStart = atIndex === 0 || value[atIndex - 1] === " ";
+
+      if (isAtWordStart) {
+        // Extract the query after the @ symbol
+        const afterAt = value.slice(atIndex + 1);
+        const spaceIndex = afterAt.indexOf(" ");
+        const query =
+          spaceIndex === -1 ? afterAt : afterAt.slice(0, spaceIndex);
+
+        if (query.length > 0) {
+          setTagQuery(query);
+          setShowTagSuggestions(true);
+          return;
+        }
       }
-    } else {
-      setShowTagSuggestions(false);
-    }
-  };
-
-  const selectUserForTag = (user: { id: string; username: string }) => {
-    const atIndex = contentValue.lastIndexOf("@");
-    const beforeAt = contentValue.slice(0, atIndex);
-    const afterQuery = contentValue.slice(atIndex + tagQuery.length + 1);
-
-    const newContent = `${beforeAt}@${user.username} ${afterQuery}`;
-    setContent(newContent);
-
-    if (!taggedUsers.find((u) => u.id === user.id)) {
-      setTaggedUsers((prev) => [...prev, user]);
     }
 
     setShowTagSuggestions(false);
-    setTagQuery("");
+  };
+
+
+  const selectUserForTag = (user: {
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+  }) => {
+    // Find the position of the last @ symbol
+    const atIndex = contentValue.lastIndexOf("@");
+
+    if (atIndex !== -1) {
+      // Check if the @ is at the start of a word
+      const isAtWordStart = atIndex === 0 || contentValue[atIndex - 1] === " ";
+
+      if (isAtWordStart) {
+        // Find where the query ends (next space or end of string)
+        const afterAt = contentValue.slice(atIndex + 1);
+        const spaceIndex = afterAt.indexOf(" ");
+        const queryLength = spaceIndex === -1 ? afterAt.length : spaceIndex;
+
+        const beforeAt = contentValue.slice(0, atIndex);
+        const afterQuery = contentValue.slice(atIndex + 1 + queryLength);
+
+        const newContent = `${beforeAt}${user.username}${afterQuery}`;
+        setContent(newContent);
+
+        if (!taggedUsers.find((u) => u.id === user.id)) {
+          setTaggedUsers((prev) => [...prev, user]);
+        }
+
+        setShowTagSuggestions(false);
+        setTagQuery("");
+      }
+    }
   };
 
   const removeTaggedUser = (userId: string) => {
@@ -770,10 +848,17 @@ PostCardProps) {
                   {showTagSuggestions && (
                     <div className="absolute top-full left-0 right-0 bg-background border rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
                       {followedUsers
-                        .filter((user) =>
-                          user.username
-                            .toLowerCase()
-                            .includes(tagQuery.toLowerCase())
+                        ?.filter(
+                          (user) =>
+                            user.username
+                              .toLowerCase()
+                              .includes(tagQuery.toLowerCase()) ||
+                            user.first_name
+                              .toLowerCase()
+                              .includes(tagQuery.toLowerCase()) ||
+                            user.last_name
+                              .toLowerCase()
+                              .includes(tagQuery.toLowerCase())
                         )
                         .map((user) => (
                           <button
@@ -784,7 +869,9 @@ PostCardProps) {
                           >
                             <AtSign className="w-4 h-4" />
                             <div>
-                              <div className="font-medium">{user.username}</div>
+                              <div className="font-medium">
+                                {user.first_name} {user.last_name}
+                              </div>
                               <div className="text-xs text-muted-foreground">
                                 {user.genotype} • {user.country}
                               </div>
@@ -801,7 +888,7 @@ PostCardProps) {
                       {taggedUsers.map((user) => (
                         <Badge
                           key={user.id}
-                          variant="secondary"
+                          variant="outline"
                           className="flex items-center gap-1"
                         >
                           <AtSign className="w-3 h-3" />
@@ -917,13 +1004,13 @@ PostCardProps) {
               <PostContent content={post.content} />
             )}
 
-            {post.taggedUsers && post.taggedUsers.length > 0 && (
+            {!isEditing && taggedUsers.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
-                {post.taggedUsers.map((user) => (
-                  <Link key={user.id} href={`/profile/${user.id}`}>
+                {taggedUsers.map((user) => (
+                  <Link key={user.id} href={`/profile/${user.username}`}>
                     <Badge variant="outline" className="text-xs hover:bg-muted">
                       <AtSign className="w-3 h-3 mr-1" />
-                      {user.name}
+                      {user.username}
                     </Badge>
                   </Link>
                 ))}

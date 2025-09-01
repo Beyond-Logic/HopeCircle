@@ -94,18 +94,29 @@ CreatePostFormProps) {
   const handleContentChange = (value: string) => {
     setValue("content", value);
 
+    // Find the position of the last @ symbol
     const atIndex = value.lastIndexOf("@");
+
     if (atIndex !== -1) {
-      const query = value.slice(atIndex + 1);
-      if (query.length > 0 && !query.includes(" ")) {
-        setTagQuery(query);
-        setShowTagSuggestions(true);
-      } else {
-        setShowTagSuggestions(false);
+      // Check if the @ is at the start of a word (preceded by space or start of string)
+      const isAtWordStart = atIndex === 0 || value[atIndex - 1] === " ";
+
+      if (isAtWordStart) {
+        // Extract the query after the @ symbol
+        const afterAt = value.slice(atIndex + 1);
+        const spaceIndex = afterAt.indexOf(" ");
+        const query =
+          spaceIndex === -1 ? afterAt : afterAt.slice(0, spaceIndex);
+
+        if (query.length > 0) {
+          setTagQuery(query);
+          setShowTagSuggestions(true);
+          return;
+        }
       }
-    } else {
-      setShowTagSuggestions(false);
     }
+
+    setShowTagSuggestions(false);
   };
 
   const selectUserForTag = (user: {
@@ -114,21 +125,35 @@ CreatePostFormProps) {
     first_name: string;
     last_name: string;
   }) => {
+    // Find the position of the last @ symbol
     const atIndex = contentValue.lastIndexOf("@");
-    const beforeAt = contentValue.slice(0, atIndex);
-    const afterQuery = contentValue.slice(atIndex + tagQuery.length + 1);
 
-    const newContent = `${beforeAt}@${user.first_name} ${user.last_name} ${afterQuery}`;
-    setValue("content", newContent);
+    if (atIndex !== -1) {
+      // Check if the @ is at the start of a word
+      const isAtWordStart = atIndex === 0 || contentValue[atIndex - 1] === " ";
 
-    if (!taggedUsers.find((u) => u.id === user.id)) {
-      setTaggedUsers((prev) => [...prev, user]);
+      if (isAtWordStart) {
+        // Find where the query ends (next space or end of string)
+        const afterAt = contentValue.slice(atIndex + 1);
+        const spaceIndex = afterAt.indexOf(" ");
+        const queryLength = spaceIndex === -1 ? afterAt.length : spaceIndex;
+
+        const beforeAt = contentValue.slice(0, atIndex);
+        const afterQuery = contentValue.slice(atIndex + 1 + queryLength);
+
+        const newContent = `${beforeAt}${user.username}${afterQuery}`;
+        setValue("content", newContent);
+
+        if (!taggedUsers.find((u) => u.id === user.id)) {
+          setTaggedUsers((prev) => [...prev, user]);
+        }
+
+        setShowTagSuggestions(false);
+        setTagQuery("");
+      }
     }
-
-    setShowTagSuggestions(false);
-    setTagQuery("");
   };
-
+  
   const removeTaggedUser = (userId: string) => {
     setTaggedUsers((prev) => prev.filter((u) => u.id !== userId));
   };
@@ -311,7 +336,7 @@ CreatePostFormProps) {
               {taggedUsers.map((user) => (
                 <Badge
                   key={user.id}
-                  variant="secondary"
+                  variant="outline"
                   className="flex items-center gap-1"
                 >
                   <AtSign className="w-3 h-3" />
