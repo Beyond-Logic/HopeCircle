@@ -155,7 +155,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 )} */}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuContent className="max-w-[320px] w-full" align="end" forceMount>
                 <div className="flex items-center justify-start gap-2 p-2">
                   <Avatar className="h-10 w-10">
                     <AvatarImage
