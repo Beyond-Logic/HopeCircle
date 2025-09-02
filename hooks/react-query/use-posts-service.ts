@@ -43,16 +43,36 @@ export function useGetPostById(postId: string) {
   return useQuery({
     queryKey: ["post", postId],
     queryFn: async () => {
-      const { data, error } = await postService.getPostById(postId);
-      if (error)
+      try {
+        // First try to fetch as post
+        const { data: postData, error: postError } =
+          await postService.getPostById(postId);
+        if (!postError) return postData;
+
+        // If post not found, try as comment
+        const { data: commentData, error: commentError } =
+          await commentService.getCommentById(postId);
+        if (commentError)
+          throw new Error(`Neither post nor comment found with ID: ${postId}`);
+
+        // Fetch post from comment's post_id
+        const { data: postFromComment, error: postFromCommentError } =
+          await postService.getPostById(commentData.post_id);
+        if (postFromCommentError)
+          throw new Error(
+            `Post not found for comment: ${postFromCommentError.message}`
+          );
+
+        return postFromComment;
+      } catch (error) {
         throw new Error(
           error && typeof error === "object" && "message" in error
-            ? error.message
-            : error || "Failed to fetch post"
+            ? (error.message as string)
+            : (error as string) || "Failed to fetch post"
         );
-      return data;
+      }
     },
-    enabled: !!postId, // only run if postId is provided
+    enabled: !!postId,
     staleTime: 1000 * 60 * 1,
     retry: 1,
   });
@@ -243,7 +263,6 @@ export function useCreatePost({
     },
   });
 }
-
 
 export function usePinPost() {
   const queryClient = useQueryClient();
