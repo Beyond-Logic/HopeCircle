@@ -33,6 +33,8 @@ import {
   Eye,
   Info,
   MapPin,
+  Pin,
+  Loader2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
@@ -63,6 +65,8 @@ import {
   useDeleteComment,
   useDeletePost,
   useDeleteReply,
+  usePinPost,
+  useUnpinPost,
   useUpdatePost,
 } from "@/hooks/react-query/use-posts-service";
 import { useIsUserInGroup } from "@/hooks/react-query/use-is-user-in-group";
@@ -103,6 +107,7 @@ interface Post {
       last_name: string;
     };
   }>;
+  is_pinned?: boolean; // Add this line
 }
 
 interface PostCardProps {
@@ -135,6 +140,19 @@ PostCardProps) {
   const searchParams = useSearchParams();
 
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
+
+  const isPinned = post.is_pinned; // Add this to your Post interface
+
+  const { mutate: pinPost, isPending: isPinning } = usePinPost();
+  const { mutate: unpinPost, isPending: isUnpinning } = useUnpinPost();
+
+  const handlePinPost = () => {
+    if (isPinned) {
+      unpinPost(post.id);
+    } else {
+      pinPost({ postId: post.id, groupId: groupId || post.group?.id || "" });
+    }
+  };
 
   useEffect(() => {
     authService
@@ -218,7 +236,6 @@ PostCardProps) {
     }
   }, [showCommentsSection]);
 
-  
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!showAllImages || !post.images) return;
@@ -412,53 +429,48 @@ PostCardProps) {
   const { mutateAsync: updatePost, isPending: isPostUpdatePending } =
     useUpdatePost();
 
-    const handleEditPost = async () => {
-      try {
-        const updatedImages = [...existingKeys];
+  const handleEditPost = async () => {
+    try {
+      const updatedImages = [...existingKeys];
 
-        for (let i = 0; i < newImages.length; i++) {
-          const key = await postService.uploadPostImage(
-            newImages[i],
-            post.id,
-            i
-          );
-          updatedImages.push(key);
-        }
-
-        // First update the post content and images
-        const updates = {
-          content: contentValue.trim(),
-          images: updatedImages,
-          group_id:
-            selectedGroupId !== "your-timeline" ? selectedGroupId : null,
-        };
-
-        const { data, error } = await updatePost({ postId: post.id, updates });
-        if (error) throw error;
-
-        // Then update the tagged users separately
-        if (taggedUsers.length > 0) {
-          // First remove existing tags
-          await postService.removeAllPostTags(post.id);
-
-          // Then add the new tags
-          const taggedIds = taggedUsers.map((user) => user.id);
-          await postService.addPostTags(post.id, taggedIds);
-        } else {
-          // If no tagged users, remove all tags
-          await postService.removeAllPostTags(post.id);
-        }
-
-        onEdit?.(post.id, data);
-        setIsEditing(false);
-        setNewImages([]);
-        setRemovedImages([]);
-        setHasChanges(false); // Add this line
-      } catch (err) {
-        console.error(err);
-        // error toast already handled in hook
+      for (let i = 0; i < newImages.length; i++) {
+        const key = await postService.uploadPostImage(newImages[i], post.id, i);
+        updatedImages.push(key);
       }
-    };
+
+      // First update the post content and images
+      const updates = {
+        content: contentValue.trim(),
+        images: updatedImages,
+        group_id: selectedGroupId !== "your-timeline" ? selectedGroupId : null,
+      };
+
+      const { data, error } = await updatePost({ postId: post.id, updates });
+      if (error) throw error;
+
+      // Then update the tagged users separately
+      if (taggedUsers.length > 0) {
+        // First remove existing tags
+        await postService.removeAllPostTags(post.id);
+
+        // Then add the new tags
+        const taggedIds = taggedUsers.map((user) => user.id);
+        await postService.addPostTags(post.id, taggedIds);
+      } else {
+        // If no tagged users, remove all tags
+        await postService.removeAllPostTags(post.id);
+      }
+
+      onEdit?.(post.id, data);
+      setIsEditing(false);
+      setNewImages([]);
+      setRemovedImages([]);
+      setHasChanges(false); // Add this line
+    } catch (err) {
+      console.error(err);
+      // error toast already handled in hook
+    }
+  };
 
   const cancelEdit = () => {
     setContent(post.content);
@@ -647,7 +659,6 @@ PostCardProps) {
     setShowTagSuggestions(false);
   };
 
-
   const selectUserForTag = (user: {
     id: string;
     username: string;
@@ -760,6 +771,7 @@ PostCardProps) {
                     member?.role && <GroupRoleBadge role={member?.role} />
                   )}
                 </Link>
+
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <div className="hidden">
                     <span>{post.author.genotype}</span>
@@ -787,6 +799,12 @@ PostCardProps) {
                     </Link>
                   </div>
                 )}
+                {isPinned && (
+                  <Badge className="bg-amber-500/10 text-amber-500 px-2 py-1 rounded ml-2">
+                    <Pin className="w-3 h-3 mr-1" />
+                    Pinned
+                  </Badge>
+                )}
               </div>
             </div>
             <DropdownMenu>
@@ -797,22 +815,52 @@ PostCardProps) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {isSinglePost ? (
-                  <></>
+                  <>
+                    {isGroup && isAdmin && (
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        onClick={handlePinPost}
+                        disabled={isPinning || isUnpinning}
+                      >
+                        <Pin className="w-4 h-4 mr-2" />
+                        {isPinned ? "Unpin Post" : "Pin Post"}
+                        {(isPinning || isUnpinning) && (
+                          <Loader2 className="w-3 h-3 ml-2 animate-spin" />
+                        )}
+                      </DropdownMenuItem>
+                    )}
+                  </>
                 ) : (
-                  <Link
-                    href={
-                      post.group?.id || isGroup
-                        ? `/groups/${post?.group?.id || groupId}/post/${
-                            post?.id
-                          }`
-                        : `/post/${post.id}`
-                    }
-                  >
-                    <DropdownMenuItem className="cursor-pointer">
-                      <Eye className="w-4 h-4 mr-2" />
-                      View Post
-                    </DropdownMenuItem>
-                  </Link>
+                  <>
+                    <Link
+                      href={
+                        post.group?.id || isGroup
+                          ? `/groups/${post?.group?.id || groupId}/post/${
+                              post?.id
+                            }`
+                          : `/post/${post.id}`
+                      }
+                    >
+                      <DropdownMenuItem className="cursor-pointer">
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Post
+                      </DropdownMenuItem>
+                    </Link>
+
+                    {isGroup && isAdmin && (
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        onClick={handlePinPost}
+                        disabled={isPinning || isUnpinning}
+                      >
+                        <Pin className="w-4 h-4 mr-2" />
+                        {isPinned ? "Unpin Post" : "Pin Post"}
+                        {(isPinning || isUnpinning) && (
+                          <Loader2 className="w-3 h-3 ml-2 animate-spin" />
+                        )}
+                      </DropdownMenuItem>
+                    )}
+                  </>
                 )}
                 {canEdit ? (
                   <>

@@ -242,3 +242,49 @@ export function useCreatePost({
     },
   });
 }
+
+
+export function usePinPost() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ postId, groupId }: { postId: string; groupId: string }) =>
+      postService.pinPost(postId, groupId),
+
+    onSuccess: () => {
+      // Invalidate queries so pinned state updates
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["groupPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+      toast.success("Post pinned successfully");
+    },
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (error: any) => {
+      console.error(error);
+      toast.error("Failed to pin post. Please try again.");
+    },
+  });
+}
+
+export function useUnpinPost() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (postId: string) => postService.unpinPost(postId),
+
+    onSuccess: () => {
+      // Invalidate queries so unpinned state updates
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["groupPosts"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+      toast.success("Post unpinned successfully");
+    },
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (error: any) => {
+      console.error(error);
+      toast.error("Failed to unpin post. Please try again.");
+    },
+  });
+}
