@@ -135,6 +135,9 @@ export function Feed() {
               <p className="text-muted-foreground text-sm">
                 Share your journey and connect with others.
               </p>
+              <p className="text-muted-foreground text-xs mt-1">
+                💙 Likes here are meant as encouragement, not competition.
+              </p>
             </div>
           </div>
         </CardContent>
@@ -211,7 +214,7 @@ export function Feed() {
             className="flex items-center gap-2 text-sm"
           >
             <TrendingUp className="w-4 h-4" />
-            Popular
+            Encouraging
           </TabsTrigger>
         </TabsList>
 
