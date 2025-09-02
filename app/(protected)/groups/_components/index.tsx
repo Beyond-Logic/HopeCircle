@@ -308,7 +308,7 @@ function GroupGrid({
                   {/* <span>Active</span> */}
                 </div>
 
-                <div className="flex gap-2 w-full hidden">
+                <div className="hidden gap-2 w-full">
                   {isJoined ? (
                     group.created_by !== userId && (
                       <Button
