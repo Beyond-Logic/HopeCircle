@@ -4,9 +4,9 @@ import { groupService } from "@/lib/supabase/service/groups-service";
 
 export const useGroups = (
   limit = 21,
-  type?: "country" | "theme" | "joined",
+  type?: "country" | "theme" | "all", // Removed "joined"
   search?: string,
-  userId?: string // ✅ added userId
+  userId?: string
 ) => {
   return useInfiniteQuery({
     queryKey: ["groups", { type, search, limit, userId }],
@@ -16,7 +16,7 @@ export const useGroups = (
         limit,
         type,
         search,
-        userId // ✅ pass userId to the service
+        userId
       );
       if (error) throw error;
       return { data: data ?? [], count: count ?? 0, page: pageParam };

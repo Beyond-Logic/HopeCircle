@@ -23,16 +23,15 @@ import {
 import { useGroups } from "@/hooks/react-query/use-groups";
 import { groupService } from "@/lib/supabase/service/groups-service";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
-import { useGroupPosts } from "@/hooks/react-query/use-group-posts";
 
 export function Groups() {
   const { data: user } = useCurrentUserProfile();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<
-    "all" | "joined" | "country" | "theme"
-  >("all");
+  const [activeTab, setActiveTab] = useState<"all" | "country" | "theme">(
+    "all"
+  );
 
-  const type = activeTab as "joined" | "country" | "theme";
+  const type = activeTab as "country" | "theme";
   // ✅ type filter
 
   const {
@@ -51,7 +50,6 @@ export function Groups() {
   }, [data?.pages]);
 
   const [loadingGroupId, setLoadingGroupId] = useState<string | null>(null);
-
 
   const handleJoinGroup = async (groupId: string) => {
     if (!user?.user.id) return;
@@ -124,16 +122,15 @@ export function Groups() {
         <Tabs
           value={activeTab}
           onValueChange={(value) =>
-            setActiveTab(value as "all" | "joined" | "country" | "theme")
+            setActiveTab(value as "all" | "country" | "theme")
           }
         >
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
+            {/* Changed from 4 to 3 */}
             <TabsTrigger value="all">All Groups</TabsTrigger>
-            <TabsTrigger value="joined">Joined</TabsTrigger>
             <TabsTrigger value="country">By Country</TabsTrigger>
             <TabsTrigger value="theme">By Theme</TabsTrigger>
           </TabsList>
-
           {isLoading ? (
             <div className="flex justify-center py-6">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -185,8 +182,8 @@ interface GroupGridProps {
   loadingGroupId: string;
   userId: string;
   isLoading: boolean;
-  activeTab: "all" | "joined" | "country" | "theme";
-  setActiveTab: (tab: "all" | "joined" | "country" | "theme") => void;
+  activeTab: "all" | "country" | "theme";
+  setActiveTab: (tab: "all" | "country" | "theme") => void;
   setSearchQuery: (query: string) => void;
 }
 
@@ -196,7 +193,6 @@ function GroupGrid({
   loadingGroupId,
   userId,
   isLoading,
-  activeTab,
   setActiveTab,
   setSearchQuery,
 }: GroupGridProps) {
@@ -223,99 +219,120 @@ function GroupGrid({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {groups && groups.map((group) => {
-        const isJoined = group.group_members?.some(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (member: any) => member.user?.id === userId
-        );
+      {groups &&
+        groups.map((group) => {
+          const isJoined = group.group_members?.some(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (member: any) => member.user?.id === userId
+          );
 
-        // Assign a background color based on group type
-        const bgColor =
-          group.type === "country"
-            ? "bg-primary/20 text-primary"
-            : "bg-secondary/20 text-secondary";
+          // Assign a background color based on group type
+          const bgColor =
+            group.type === "country"
+              ? "bg-primary/20 text-primary"
+              : "bg-secondary/20 text-secondary";
 
-        // Softer badge colors
-        const badgeBg =
-          group.type === "country"
-            ? "bg-primary/10 text-primary"
-            : "bg-secondary/10 text-secondary";
+          // Softer badge colors
+          const badgeBg =
+            group.type === "country"
+              ? "bg-primary/10 text-primary"
+              : "bg-secondary/10 text-secondary";
 
-        return (
-          <Card
-            key={group.id}
-            className="overflow-hidden hover:shadow-lg transition-shadow !pt-0 group cursor-pointer"
-            onClick={() => window.open(`/groups/${group.id}`, "_self")}
-          >
-            <div className="aspect-video h-[200px] relative flex items-center justify-center">
-              {group.image_url ? (
-                <div className="w-full h-full object-cover">
-                  <img
-                    src={group.image_url}
-                    alt={group.name}
-                    className="w-full h-full object-cover"
-                  />
+          return (
+            <Card
+              key={group.id}
+              className="overflow-hidden hover:shadow-lg transition-shadow !pt-0 group cursor-pointer"
+              onClick={() => window.open(`/groups/${group.id}`, "_self")}
+            >
+              <div className="aspect-video h-[200px] relative flex items-center justify-center">
+                {group.image_url ? (
+                  <div className="w-full h-full object-cover">
+                    <img
+                      src={group.image_url}
+                      alt={group.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className={`w-full h-[200px] ${bgColor} flex items-center justify-center`}
+                  >
+                    <span className="text-white font-semibold text-lg"></span>
+                  </div>
+                )}
+
+                <div className="absolute top-3 right-3 flex gap-2">
+                  <Badge className={`${badgeBg} px-2 py-1 rounded`}>
+                    {group.type === "country" ? (
+                      <MapPin className="w-3 h-3 mr-1" />
+                    ) : (
+                      <Heart className="w-3 h-3 mr-1" />
+                    )}
+                    {group.type === "country" ? "Country" : "Theme"}
+                  </Badge>
+
+                  {/* Joined indicator badge */}
+                  {isJoined &&
+                    (group.created_by === userId ? (
+                      <Badge className="bg-green-500/10 text-green-500 px-2 py-1 rounded">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Owner
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-green-500/10 text-green-500 px-2 py-1 rounded">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Joined
+                      </Badge>
+                    ))}
                 </div>
-              ) : (
-                <div
-                  className={`w-full h-[200px] ${bgColor} flex items-center justify-center`}
-                >
-                  <span className="text-white font-semibold text-lg"></span>
-                </div>
-              )}
-
-              <div className="absolute top-3 right-3 flex gap-2">
-                <Badge className={`${badgeBg} px-2 py-1 rounded`}>
-                  {group.type === "country" ? (
-                    <MapPin className="w-3 h-3 mr-1" />
-                  ) : (
-                    <Heart className="w-3 h-3 mr-1" />
-                  )}
-                  {group.type === "country" ? "Country" : "Theme"}
-                </Badge>
-
-                {/* Joined indicator badge */}
-                {isJoined &&
-                  (group.created_by === userId ? (
-                    <Badge className="bg-green-500/10 text-green-500 px-2 py-1 rounded">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Owner
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-green-500/10 text-green-500 px-2 py-1 rounded">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Joined
-                    </Badge>
-                  ))}
-              </div>
-            </div>
-
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg line-clamp-1">
-                {group.name}
-              </CardTitle>
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {group.description}
-              </p>
-            </CardHeader>
-
-            <CardContent className="pt-0">
-              <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
-                <div className="flex items-center gap-1">
-                  <Users className="w-4 h-4" />
-                  <span>
-                    {(group.group_members?.length || 0).toLocaleString()}{" "}
-                    members
-                  </span>
-                </div>
-                {/* <span>Active</span> */}
               </div>
 
-              <div className="flex gap-2 w-full">
-                {isJoined ? (
-                  group.created_by !== userId && (
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg line-clamp-1">
+                  {group.name}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {group.description}
+                </p>
+              </CardHeader>
+
+              <CardContent className="pt-0">
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
+                  <div className="flex items-center gap-1">
+                    <Users className="w-4 h-4" />
+                    <span>
+                      {(group.group_members?.length || 0).toLocaleString()}{" "}
+                      members
+                    </span>
+                  </div>
+                  {/* <span>Active</span> */}
+                </div>
+
+                <div className="flex gap-2 w-full">
+                  {isJoined ? (
+                    group.created_by !== userId && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onJoinGroup(group.id);
+                        }}
+                        disabled={loadingGroupId === group.id}
+                      >
+                        {loadingGroupId === group.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <LogOut className="w-4 h-4 mr-1" />
+                            Leave
+                          </>
+                        )}
+                      </Button>
+                    )
+                  ) : (
                     <Button
-                      variant="outline"
                       size="sm"
                       className="w-full"
                       onClick={(e) => {
@@ -327,35 +344,15 @@ function GroupGrid({
                       {loadingGroupId === group.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
-                        <>
-                          <LogOut className="w-4 h-4 mr-1" />
-                          Leave
-                        </>
+                        "Join"
                       )}
                     </Button>
-                  )
-                ) : (
-                  <Button
-                    size="sm"
-                    className="w-full"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onJoinGroup(group.id);
-                    }}
-                    disabled={loadingGroupId === group.id}
-                  >
-                    {loadingGroupId === group.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      "Join"
-                    )}
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
     </div>
   );
 }
