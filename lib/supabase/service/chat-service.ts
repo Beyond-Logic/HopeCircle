@@ -40,6 +40,22 @@ export interface FileAttachment {
   key: string;
 }
 
+// 🆕 Generate signed URL for an attachment
+async function getSignedAttachmentUrl(key: string, expiresInSeconds = 3600) {
+  if (!key) return null;
+
+  const { data, error } = await supabase.storage
+    .from("chat-files")
+    .createSignedUrl(key, expiresInSeconds);
+
+  if (error) {
+    console.error("Error creating signed URL:", error);
+    return null;
+  }
+
+  return data?.signedUrl ?? null;
+}
+
 export const chatService = {
   FILE_LIMITS,
   FILE_CATEGORIES,
@@ -204,6 +220,29 @@ export const chatService = {
     return { data, error };
   },
 
+  // 🆕 Hydrate messages with signed URLs
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async hydrateMessageAttachments(message: any) {
+    if (!message?.attachments || !Array.isArray(message.attachments))
+      return message;
+
+    const attachmentsWithSignedUrls = await Promise.all(
+      message.attachments.map(async (att: FileAttachment) => {
+        const signedUrl = await getSignedAttachmentUrl(att.key, 3600);
+        return {
+          ...att,
+          url: signedUrl, // replace broken URL with signed one
+        };
+      })
+    );
+
+    return {
+      ...message,
+      attachments: attachmentsWithSignedUrls,
+    };
+  },
+  
+  // 🆕 Fetch messages with signed attachment URLs
   async fetchMessages(userId1: string, userId2: string) {
     const roomName = this.getRoomName(userId1, userId2);
     const { data, error } = await supabase
@@ -211,7 +250,15 @@ export const chatService = {
       .select("*")
       .eq("room_name", roomName)
       .order("created_at", { ascending: true });
-    return { data, error };
+
+    if (error) return { data: null, error };
+
+    // hydrate attachments with signed URLs
+    const hydrated = await Promise.all(
+      (data ?? []).map((msg) => this.hydrateMessageAttachments(msg))
+    );
+
+    return { data: hydrated, error: null };
   },
 
   subscribeToRoom(
