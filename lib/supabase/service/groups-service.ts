@@ -37,7 +37,7 @@ export const groupService = {
   async getGroups(
     page = 0,
     limit = 21,
-    type?: "country" | "theme" | "joined" | "all",
+    type?: "country" | "theme" | "all", // Removed "joined" from type
     search?: string,
     userId?: string
   ) {
@@ -46,137 +46,107 @@ export const groupService = {
       let data: any[] = [];
       let count = 0;
 
-      // ✅ Joined groups: only groups user has joined but ISN'T the creator
-      if (type === "joined") {
-        if (!userId) return { data: [], count: 0, error: null };
-
-        const {
-          data: userGroups,
-          count: joinedCount,
-          error,
-        } = await supabase
+      // First get groups user is member of (joined or created)
+      let userGroupIds: string[] = [];
+      if (userId) {
+        const { data: userMemberships } = await supabase
           .from("group_members")
-          .select(
-            `
-          group:groups(
-            *,
-            creator:users!created_by(id, first_name, last_name, username, avatar_url),
-            group_members!group_members_group_id_fkey(
-              user:users!group_members_user_id_fkey(
-                id, first_name, last_name, username, avatar_url, genotype, country
-              ),
-              joined_at
-            )
-          )
-        `,
-            { count: "exact" }
-          )
-          .eq("user_id", userId)
-          .eq("group.status", "active")
-          .neq("group.created_by", userId)
-          .order("joined_at", { ascending: false })
-          .range(page * limit, (page + 1) * limit - 1);
+          .select("group_id")
+          .eq("user_id", userId);
 
+        const { data: userCreatedGroups } = await supabase
+          .from("groups")
+          .select("id")
+          .eq("created_by", userId)
+          .eq("status", "active");
+
+        userGroupIds = [
+          ...(userMemberships?.map((m) => m.group_id) || []),
+          ...(userCreatedGroups?.map((g) => g.id) || []),
+        ];
+      }
+
+      let query = supabase.from("groups").select(
+        `
+      *,
+      creator:users!created_by(id, first_name, last_name, username, avatar_url),
+      group_members!group_members_group_id_fkey(
+        user:users!group_members_user_id_fkey(
+          id, first_name, last_name, username, avatar_url, genotype, country
+        ),
+        joined_at
+      )
+    `,
+        { count: "exact" }
+      );
+
+      query = query.eq("status", "active");
+
+      // Exclude groups user is member of or created
+      if (userGroupIds.length > 0) {
+        query = query.not("id", "in", `(${userGroupIds.join(",")})`);
+      }
+
+      // Apply type filter (country/theme)
+      if (type === "country" || type === "theme") {
+        query = query.eq("type", type);
+      }
+
+      // Apply search filter
+      if (search) {
+        query = query.or(
+          `name.ilike.%${search}%,description.ilike.%${search}%`
+        );
+      }
+
+      // For "all" tab, use activity-based randomization
+      if (type === "all") {
+        // First get total count for pagination
+        const { count: totalCount } = await query;
+
+        // Apply activity-based ordering with some randomness
+        query = query
+          .order("activity_score", { ascending: false })
+          .order("created_at", { ascending: false }); // Secondary sort for some variety
+
+        query = query.range(page * limit, (page + 1) * limit - 1);
+
+        const { data: groupsData, error } = await query;
         if (error) throw error;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data = userGroups?.map((gm: any) => gm.group) ?? [];
-        count = joinedCount ?? 0;
-      }
-      // ✅ All groups, country, or theme: groups user hasn't joined AND isn't creator of
-      else {
-        // First get groups user is member of (joined or created)
-        let userGroupIds: string[] = [];
-        if (userId) {
-          const { data: userMemberships } = await supabase
-            .from("group_members")
-            .select("group_id")
-            .eq("user_id", userId);
+        // Add client-side shuffling for the first page to increase variety
+        if (page === 0 && groupsData && groupsData.length > 0) {
+          // Use a time-based seed for consistent randomness during the same hour
+          const hourlySeed = Math.floor(Date.now() / (60 * 60 * 1000));
+          const seededRandom = (max: number) => {
+            const x = Math.sin(hourlySeed) * 10000;
+            return Math.floor((x - Math.floor(x)) * max);
+          };
 
-          const { data: userCreatedGroups } = await supabase
-            .from("groups")
-            .select("id")
-            .eq("created_by", userId)
-            .eq("status", "active");
-
-          userGroupIds = [
-            ...(userMemberships?.map((m) => m.group_id) || []),
-            ...(userCreatedGroups?.map((g) => g.id) || []),
-          ];
-        }
-
-        let query = supabase.from("groups").select(
-          `
-        *,
-        creator:users!created_by(id, first_name, last_name, username, avatar_url),
-        group_members!group_members_group_id_fkey(
-          user:users!group_members_user_id_fkey(
-            id, first_name, last_name, username, avatar_url, genotype, country
-          ),
-          joined_at
-        )
-      `,
-          { count: "exact" }
-        );
-
-        query = query.eq("status", "active");
-
-        // Exclude groups user is member of or created
-        if (userGroupIds.length > 0) {
-          query = query.not("id", "in", `(${userGroupIds.join(",")})`);
-        }
-
-        // Apply type filter (country/theme)
-        if (type === "country" || type === "theme") {
-          query = query.eq("type", type);
-        }
-
-        // Apply search filter
-        if (search) {
-          query = query.or(
-            `name.ilike.%${search}%,description.ilike.%${search}%`
-          );
-        }
-
-        // For "all" tab, use activity-based randomization
-        if (type === "all") {
-          // First get total count for pagination
-          const { count: totalCount } = await query;
-
-          // Apply activity-based ordering with some randomness
-          query = query
-            .order("activity_score", { ascending: false })
-            .order("created_at", { ascending: false }); // Secondary sort for some variety
-
-          query = query.range(page * limit, (page + 1) * limit - 1);
-
-          const { data: groupsData, error } = await query;
-          if (error) throw error;
-
-          // Add client-side shuffling for the first page to increase variety
-          if (page === 0 && groupsData && groupsData.length > 0) {
-            // Use a time-based seed for consistent randomness during the same hour
-            const hourlySeed = Math.floor(Date.now() / (60 * 60 * 1000));
-            const seededRandom = (max: number) => {
-              const x = Math.sin(hourlySeed) * 10000;
-              return Math.floor((x - Math.floor(x)) * max);
-            };
-
-            // Fisher-Yates shuffle algorithm with seeded randomness
-            const shuffledData = [...groupsData];
-            for (let i = shuffledData.length - 1; i > 0; i--) {
-              const j = seededRandom(i + 1);
-              [shuffledData[i], shuffledData[j]] = [
-                shuffledData[j],
-                shuffledData[i],
-              ];
-            }
-            data = shuffledData;
-            count = totalCount ?? 0; // ← Make sure this line is there
-          } else {
-            data = groupsData ?? [];
+          // Fisher-Yates shuffle algorithm with seeded randomness
+          const shuffledData = [...groupsData];
+          for (let i = shuffledData.length - 1; i > 0; i--) {
+            const j = seededRandom(i + 1);
+            [shuffledData[i], shuffledData[j]] = [
+              shuffledData[j],
+              shuffledData[i],
+            ];
           }
+          data = shuffledData;
+          count = totalCount ?? 0;
+        } else {
+          data = groupsData ?? [];
+          count = totalCount ?? 0;
         }
+      } else {
+        // For country/theme tabs, use normal ordering and pagination
+        query = query.order("created_at", { ascending: false });
+        query = query.range(page * limit, (page + 1) * limit - 1);
+
+        const { data: groupsData, error, count: groupsCount } = await query;
+        if (error) throw error;
+        data = groupsData ?? [];
+        count = groupsCount ?? 0;
       }
 
       // ✅ Add signed images
