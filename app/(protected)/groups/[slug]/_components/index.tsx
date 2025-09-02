@@ -280,7 +280,7 @@ export function GroupDetail() {
             <div className="space-y-4">
               {!loadingState && posts && posts.length > 0 ? (
                 posts.map((post) => {
-                  const isAdmin = group.created_by === post.author.id;
+                  const isAdmin = group.created_by === user?.user.id;
                   return (
                     <PostCard
                       key={post.id}

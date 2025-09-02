@@ -596,4 +596,25 @@ export const postService = {
     if (error) throw error;
     return { error: null };
   },
+
+  async pinPost(postId: string, groupId: string) {
+    const { data, error } = await supabase
+      .from("posts")
+      .update({ is_pinned: true, pinned_at: new Date().toISOString() })
+      .eq("id", postId)
+      .eq("group_id", groupId);
+
+    if (error) throw error;
+    return data;
+  },
+
+  async unpinPost(postId: string) {
+    const { data, error } = await supabase
+      .from("posts")
+      .update({ is_pinned: false, pinned_at: null })
+      .eq("id", postId);
+
+    if (error) throw error;
+    return data;
+  },
 };
