@@ -213,7 +213,7 @@ export function Feed() {
             value="popular"
             className="flex items-center gap-2 text-sm"
           >
-            <TrendingUp className="w-4 h-4" />
+            <Heart className="w-4 h-4" />
             Encouraging
           </TabsTrigger>
         </TabsList>
