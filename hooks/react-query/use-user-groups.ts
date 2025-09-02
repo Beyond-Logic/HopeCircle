@@ -1,5 +1,5 @@
 // hooks/useUserGroups.ts
-import { useInfiniteQuery  } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { groupService } from "@/lib/supabase/service/groups-service";
 import { Group } from "@/types/group";
 
@@ -7,24 +7,44 @@ export const useUserGroups = (userId: string, limit = 10, fetchAll = false) => {
   return useInfiniteQuery({
     queryKey: ["userGroups", userId, limit],
     queryFn: async ({ pageParam }: { pageParam: number }) => {
-      const { data, count, error } = await groupService.getUserGroups(
+      const response = await groupService.getUserGroups(
         userId,
         pageParam,
         limit,
-        fetchAll,
+        fetchAll
       );
-      if (error) throw error;
 
-      return { data: (data || []) as unknown as Group[], count: count || 0, page: pageParam };
+      console.log("Page", pageParam, "response:", {
+        dataLength: response.data?.length,
+        hasMore: response.hasMore,
+        count: response.count,
+      });
+
+      if (response.error) throw response.error;
+
+      return {
+        data: (response.data || []) as unknown as Group[],
+        count: response.count || 0,
+        hasMore: response.hasMore || false,
+        page: pageParam,
+      };
     },
     initialPageParam: 0,
     getNextPageParam: (
-      lastPage: { data: Group[]; count: number; page: number },
-      allPages: { data: Group[]; count: number; page: number }[]
+      lastPage: {
+        data: Group[];
+        count: number;
+        hasMore: boolean;
+        page: number;
+      },
+      allPages: {
+        data: Group[];
+        count: number;
+        hasMore: boolean;
+        page: number;
+      }[]
     ) => {
-      const total = lastPage.count ?? 0;
-      const loaded = allPages.flatMap((p) => p.data).length;
-      return loaded < total ? allPages.length : undefined; // next page index
+      return lastPage.hasMore ? allPages.length : undefined;
     },
     enabled: !!userId,
     staleTime: 60 * 1000,

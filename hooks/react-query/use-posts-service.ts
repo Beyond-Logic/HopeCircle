@@ -97,6 +97,7 @@ export function useDeletePost() {
       // Invalidate queries so UI updates
       queryClient.invalidateQueries({ queryKey: ["posts"] }); // all posts
       queryClient.invalidateQueries({ queryKey: ["userPosts"] }); // user-specific posts
+      queryClient.invalidateQueries({ queryKey: ["groupPosts"] }); // user-specific posts
       queryClient.invalidateQueries({ queryKey: ["post", postId] }); // single post
     },
   });
