@@ -135,8 +135,8 @@ export function Feed() {
               <p className="text-muted-foreground text-sm">
                 Share your journey and connect with others.
               </p>
-              <p className="text-muted-foreground text-xs mt-1">
-                💙 Likes here are meant as encouragement, not competition.
+              <p className="text-muted-foreground text-sm mt-1">
+                Likes here are meant as encouragement, not competition.
               </p>
             </div>
           </div>
