@@ -40,4 +40,5 @@ export interface CreatePost {
 export interface UpdatePost {
   content?: string;
   images?: string[];
+  group_id?: string | null;
 }

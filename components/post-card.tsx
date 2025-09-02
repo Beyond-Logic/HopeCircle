@@ -46,7 +46,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { useUserFollowers } from "@/hooks/react-query/use-get-user-followers";
 import { useAddComment } from "@/hooks/react-query/use-add-comment";
 import { useComments } from "@/hooks/react-query/use-comments";
 import {
@@ -146,6 +145,7 @@ PostCardProps) {
   const showCommentsSection = searchParams.get("showComments") === "true";
 
   const [showComments, setShowComments] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [showAllImages, setShowAllImages] = useState(false);
   const [newImages, setNewImages] = useState<File[]>([]);
@@ -218,6 +218,7 @@ PostCardProps) {
     }
   }, [showCommentsSection]);
 
+  
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!showAllImages || !post.images) return;
@@ -411,35 +412,53 @@ PostCardProps) {
   const { mutateAsync: updatePost, isPending: isPostUpdatePending } =
     useUpdatePost();
 
-  const handleEditPost = async () => {
-    try {
-      const updatedImages = [...existingKeys];
+    const handleEditPost = async () => {
+      try {
+        const updatedImages = [...existingKeys];
 
-      for (let i = 0; i < newImages.length; i++) {
-        const key = await postService.uploadPostImage(newImages[i], post.id, i);
-        updatedImages.push(key);
+        for (let i = 0; i < newImages.length; i++) {
+          const key = await postService.uploadPostImage(
+            newImages[i],
+            post.id,
+            i
+          );
+          updatedImages.push(key);
+        }
+
+        // First update the post content and images
+        const updates = {
+          content: contentValue.trim(),
+          images: updatedImages,
+          group_id:
+            selectedGroupId !== "your-timeline" ? selectedGroupId : null,
+        };
+
+        const { data, error } = await updatePost({ postId: post.id, updates });
+        if (error) throw error;
+
+        // Then update the tagged users separately
+        if (taggedUsers.length > 0) {
+          // First remove existing tags
+          await postService.removeAllPostTags(post.id);
+
+          // Then add the new tags
+          const taggedIds = taggedUsers.map((user) => user.id);
+          await postService.addPostTags(post.id, taggedIds);
+        } else {
+          // If no tagged users, remove all tags
+          await postService.removeAllPostTags(post.id);
+        }
+
+        onEdit?.(post.id, data);
+        setIsEditing(false);
+        setNewImages([]);
+        setRemovedImages([]);
+        setHasChanges(false); // Add this line
+      } catch (err) {
+        console.error(err);
+        // error toast already handled in hook
       }
-
-      const updates = {
-        content: contentValue.trim(),
-        images: updatedImages,
-        group_id: selectedGroupId !== "your-timeline" ? selectedGroupId : null,
-        tagged_users: taggedUsers.map((user) => user.id),
-      };
-
-      const { data, error } = await updatePost({ postId: post.id, updates });
-      if (error) throw error;
-
-      onEdit?.(post.id, data);
-      setIsEditing(false);
-      setNewImages([]);
-      setRemovedImages([]);
-    } catch (err) {
-      console.error(err);
-      // error toast already handled in hook
-    } finally {
-    }
-  };
+    };
 
   const cancelEdit = () => {
     setContent(post.content);
@@ -667,6 +686,37 @@ PostCardProps) {
   const removeTaggedUser = (userId: string) => {
     setTaggedUsers((prev) => prev.filter((u) => u.id !== userId));
   };
+
+  useEffect(() => {
+    // Check if content changed
+    const contentChanged = contentValue !== post.content;
+
+    // Check if images changed (existing images removed or new images added)
+    const imagesChanged = removedImages.length > 0 || newImages.length > 0;
+
+    // Check if group changed
+    const groupChanged =
+      selectedGroupId !== (post.group?.id || "your-timeline");
+
+    // Check if tags changed
+    const currentTagIds = post.postTags?.map((tag) => tag.tagged_user.id) || [];
+    const newTagIds = taggedUsers.map((user) => user.id);
+    const tagsChanged =
+      JSON.stringify(currentTagIds.sort()) !== JSON.stringify(newTagIds.sort());
+
+    setHasChanges(
+      contentChanged || imagesChanged || groupChanged || tagsChanged
+    );
+  }, [
+    contentValue,
+    post.content,
+    removedImages,
+    newImages,
+    selectedGroupId,
+    post.group?.id,
+    post.postTags,
+    taggedUsers,
+  ]);
 
   const badgeBg =
     post?.group?.type === "country"
@@ -990,7 +1040,7 @@ PostCardProps) {
                   <Button
                     size="sm"
                     onClick={handleEditPost}
-                    disabled={isPostUpdatePending}
+                    disabled={isPostUpdatePending || !hasChanges}
                   >
                     <Check className="w-4 h-4" />
                     {isPostUpdatePending ? "Saving..." : <>Save</>}

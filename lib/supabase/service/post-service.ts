@@ -585,4 +585,15 @@ export const postService = {
 
     return { data: postsWithAvatars, count: count ?? 0, error: null };
   },
+
+  // Add this function to your postService object
+  async removeAllPostTags(postId: string) {
+    const { error } = await supabase
+      .from("post_tags")
+      .delete()
+      .eq("post_id", postId);
+
+    if (error) throw error;
+    return { error: null };
+  },
 };

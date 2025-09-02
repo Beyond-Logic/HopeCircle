@@ -43,7 +43,7 @@ export function Groups() {
     hasNextPage,
     isFetchingNextPage,
     refetch,
-  } = useGroups(10, type, searchQuery, user?.user.id as string);
+  } = useGroups(21, type, searchQuery, user?.user.id as string);
 
   const groups = useMemo(() => {
     if (!data?.pages) return [];
@@ -223,10 +223,7 @@ function GroupGrid({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {(activeTab === "joined"
-        ? groups.filter((group) => group.created_by !== userId)
-        : groups
-      ).map((group) => {
+      {groups && groups.map((group) => {
         const isJoined = group.group_members?.some(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (member: any) => member.user?.id === userId

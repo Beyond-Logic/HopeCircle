@@ -3,7 +3,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { groupService } from "@/lib/supabase/service/groups-service";
 
 export const useGroups = (
-  limit = 10,
+  limit = 21,
   type?: "country" | "theme" | "joined",
   search?: string,
   userId?: string // ✅ added userId
