@@ -183,8 +183,8 @@ export const groupService = {
       const groupsWithImages = await Promise.all(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         data.map(async (group: any) => {
-          const image_url = group.image_url
-            ? await this.getGroupImageUrl(group.image_url)
+          const image_url = group?.image_url
+            ? await this.getGroupImageUrl(group?.image_url)
             : null;
           return { ...group, image_url };
         })
