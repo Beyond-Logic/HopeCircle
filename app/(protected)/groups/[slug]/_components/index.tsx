@@ -38,8 +38,6 @@ export function GroupDetail() {
 
   const { data: group, isLoading, error } = useGetGroupById(groupId);
 
-  console.log("group", group);
-
   const { data: isMember } = useIsUserInGroup(groupId, user?.user.id as string);
   const { mutate: joinGroupMutate, isPending } = useJoinGroup();
 
@@ -92,12 +90,14 @@ export function GroupDetail() {
         content: post.content,
         images: post.images || [],
         group: post.group ? { id: post.group.id, name: post.group.name } : null,
+        group_id: post.group_id,
         createdAt: post.created_at,
         updatedAt: post.updated_at,
         likes: post.post_likes.length || 0,
         post_likes: post.post_likes || [],
         comments: post.comments?.[0]?.count || 0,
         postTags: post.post_tags || [],
+        is_pinned: post.is_pinned,
       }));
 
       if (page === 0) {

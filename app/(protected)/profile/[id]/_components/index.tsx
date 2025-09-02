@@ -34,6 +34,7 @@ import { GroupRoleBadge } from "@/components/group-role-badge";
 export function Profile() {
   const params = useParams();
   const { data } = useCurrentUserProfile();
+  const [activeTab, setActiveTab] = useState("posts"); // Set your default tab
 
   const user = data?.user;
   const userId = params.id as string;
@@ -87,6 +88,7 @@ export function Profile() {
               type: post.group.type || "theme",
             }
           : null,
+        group_id: post.group_id,
         createdAt: post.created_at,
         updatedAt: post.updated_at,
         likes: post.post_likes.length || 0,
@@ -144,10 +146,14 @@ export function Profile() {
       .then(setProfilePreview);
   }, [profileData]);
 
+  // Add this ref for groups
+  const loadMoreGroupsRef = useRef<HTMLDivElement | null>(null);
+
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
+  // Posts observer - only observe when posts tab is active
   useEffect(() => {
-    if (!loadMoreRef.current) return;
+    if (!loadMoreRef.current || activeTab !== "posts") return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -163,7 +169,32 @@ export function Profile() {
     return () => {
       if (loadMoreRef.current) observer.unobserve(loadMoreRef.current);
     };
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, activeTab]); // Add activeTab dependency
+
+  // Groups observer - only observe when groups tab is active
+  useEffect(() => {
+    if (!loadMoreGroupsRef.current || activeTab !== "groups") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0].isIntersecting &&
+          hasMoreGroups &&
+          !isFetchingMoreGroups
+        ) {
+          fetchNextGroupPage();
+        }
+      },
+      { threshold: 1 }
+    );
+
+    observer.observe(loadMoreGroupsRef.current);
+
+    return () => {
+      if (loadMoreGroupsRef.current)
+        observer.unobserve(loadMoreGroupsRef.current);
+    };
+  }, [hasMoreGroups, isFetchingMoreGroups, fetchNextGroupPage, activeTab]); // Add activeTab dependency
 
   // ---------------------------
   // Loading & error states
@@ -335,7 +366,11 @@ export function Profile() {
       </Card>
 
       {/* Profile Content */}
-      <Tabs defaultValue="posts" className="space-y-6">
+      <Tabs
+        defaultValue="posts"
+        className="space-y-6"
+        onValueChange={setActiveTab}
+      >
         <TabsList>
           <TabsTrigger value="posts">Posts</TabsTrigger>
           <TabsTrigger value="groups">Groups</TabsTrigger>
@@ -382,12 +417,11 @@ export function Profile() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {groups &&
               groups.length > 0 &&
-              // Sort groups: admin groups first
               [...groups]
                 .sort((a, b) => {
                   const aIsAdmin = a.created_by === profileData.user.id ? 1 : 0;
                   const bIsAdmin = b.created_by === profileData.user.id ? 1 : 0;
-                  return bIsAdmin - aIsAdmin; // admin first
+                  return bIsAdmin - aIsAdmin;
                 })
                 .map((group) => {
                   const isAdmin = group.created_by === profileData.user.id;
@@ -398,7 +432,6 @@ export function Profile() {
                         <div className="flex items-center justify-between">
                           <div>
                             <h3 className="font-semibold">{group.name}</h3>
-
                             <p className="text-sm text-muted-foreground">
                               {group.member_count.toLocaleString()} members
                             </p>
@@ -436,16 +469,14 @@ export function Profile() {
             )
           )}
 
-          {/* Load More */}
+          {/* Load More for Groups - Using Intersection Observer */}
+
           {hasMoreGroups && (
-            <div className="text-center py-8">
-              <Button
-                variant="outline"
-                onClick={() => fetchNextGroupPage()}
-                disabled={isFetchingMoreGroups}
-              >
-                {isFetchingMoreGroups ? "Loading..." : "Load More Groups"}
-              </Button>
+            <div
+              ref={loadMoreGroupsRef}
+              className="h-10 flex items-center justify-center"
+            >
+              {isFetchingMoreGroups && <Loader2 className="animate-spin" />}
             </div>
           )}
         </TabsContent>

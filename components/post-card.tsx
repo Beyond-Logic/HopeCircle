@@ -93,6 +93,7 @@ interface Post {
     type: "country" | "theme";
     name: string;
   } | null;
+  group_id: string;
   taggedUsers?: Array<{ id: string; name: string }>;
   createdAt: Date;
   updatedAt: Date;
@@ -120,7 +121,6 @@ interface PostCardProps {
   groupId?: string;
   isGroup?: boolean;
   isAdmin?: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   group?: any;
 }
 
@@ -150,7 +150,7 @@ PostCardProps) {
     if (isPinned) {
       unpinPost(post.id);
     } else {
-      pinPost({ postId: post.id, groupId: groupId || post.group?.id || "" });
+      pinPost({ postId: post.id, groupId: groupId || post.group_id || "" });
     }
   };
 
@@ -800,7 +800,7 @@ PostCardProps) {
                   </div>
                 )}
                 {isPinned && (
-                  <Badge className="bg-amber-500/10 text-amber-500 px-2 py-1 rounded ml-2">
+                  <Badge className="bg-amber-500/10 text-amber-500 px-2 py-1 rounded mt-1">
                     <Pin className="w-3 h-3 mr-1" />
                     Pinned
                   </Badge>

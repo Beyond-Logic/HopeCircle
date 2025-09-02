@@ -37,7 +37,7 @@ export const groupService = {
   async getGroups(
     page = 0,
     limit = 21,
-    type?: "country" | "theme" | "all", // Removed "joined" from type
+    type?: "country" | "theme" | "all",
     search?: string,
     userId?: string
   ) {
@@ -46,7 +46,7 @@ export const groupService = {
       let data: any[] = [];
       let count = 0;
 
-      // First get groups user is member of (joined or created)
+      // Get groups user is already member of or created
       let userGroupIds: string[] = [];
       if (userId) {
         const { data: userMemberships } = await supabase
@@ -82,12 +82,12 @@ export const groupService = {
 
       query = query.eq("status", "active");
 
-      // Exclude groups user is member of or created
+      // Exclude groups user is already member of or created
       if (userGroupIds.length > 0) {
         query = query.not("id", "in", `(${userGroupIds.join(",")})`);
       }
 
-      // Apply type filter (country/theme)
+      // Apply type filter
       if (type === "country" || type === "theme") {
         query = query.eq("type", type);
       }
@@ -99,57 +99,45 @@ export const groupService = {
         );
       }
 
-      // For "all" tab, use activity-based randomization
+      // For "all" tab, use simple randomization
       if (type === "all") {
-        // First get total count for pagination
-        const { count: totalCount } = await query;
-
-        // Apply activity-based ordering with some randomness
+        // Use member_count for ordering to show more active groups first
         query = query
-          .order("activity_score", { ascending: false })
-          .order("created_at", { ascending: false }); // Secondary sort for some variety
+          .order("member_count", { ascending: false }) // Show groups with more members first
+          .order("created_at", { ascending: false }); // Then by newest
 
-        query = query.range(page * limit, (page + 1) * limit - 1);
+        const {
+          data: groupsData,
+          error,
+          count: totalCount,
+        } = await query.range(page * limit, (page + 1) * limit - 1);
 
-        const { data: groupsData, error } = await query;
         if (error) throw error;
 
-        // Add client-side shuffling for the first page to increase variety
+        // Simple client-side shuffling for variety
         if (page === 0 && groupsData && groupsData.length > 0) {
-          // Use a time-based seed for consistent randomness during the same hour
-          const hourlySeed = Math.floor(Date.now() / (60 * 60 * 1000));
-          const seededRandom = (max: number) => {
-            const x = Math.sin(hourlySeed) * 10000;
-            return Math.floor((x - Math.floor(x)) * max);
-          };
-
-          // Fisher-Yates shuffle algorithm with seeded randomness
-          const shuffledData = [...groupsData];
-          for (let i = shuffledData.length - 1; i > 0; i--) {
-            const j = seededRandom(i + 1);
-            [shuffledData[i], shuffledData[j]] = [
-              shuffledData[j],
-              shuffledData[i],
-            ];
-          }
+          const shuffledData = [...groupsData].sort(() => Math.random() - 0.5);
           data = shuffledData;
-          count = totalCount ?? 0;
         } else {
           data = groupsData ?? [];
-          count = totalCount ?? 0;
         }
+        count = totalCount ?? 0;
       } else {
-        // For country/theme tabs, use normal ordering and pagination
+        // For country/theme tabs, use normal ordering
         query = query.order("created_at", { ascending: false });
-        query = query.range(page * limit, (page + 1) * limit - 1);
 
-        const { data: groupsData, error, count: groupsCount } = await query;
+        const {
+          data: groupsData,
+          error,
+          count: groupsCount,
+        } = await query.range(page * limit, (page + 1) * limit - 1);
+
         if (error) throw error;
         data = groupsData ?? [];
         count = groupsCount ?? 0;
       }
 
-      // ✅ Add signed images
+      // Add signed images
       const groupsWithImages = await Promise.all(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         data.map(async (group: any) => {
@@ -166,7 +154,6 @@ export const groupService = {
       return { data: null, count: 0, error: err };
     }
   },
-
   // Get single group
 
   async getGroup(groupId: string) {
@@ -314,11 +301,12 @@ export const groupService = {
       .from("group_members")
       .select(
         `
-        group:groups(
-          *,
-          members:group_members(count)
-        )
-      `
+      group:groups(
+        *,
+        members:group_members(count)
+      )
+    `,
+        { count: "exact" }
       )
       .eq("user_id", userId)
       .order("joined_at", { ascending: false });
@@ -327,21 +315,21 @@ export const groupService = {
       query = query.range(page * limit, (page + 1) * limit - 1);
     }
 
-    const { data, error } = await query;
+    const { data, error, count: totalCount } = await query;
 
     if (error) return { data: null, count: 0, error };
 
-    // Map groups with dynamic member count
     const groups =
       data?.map((gm) => ({
         ...gm.group,
         //@ts-expect-error - no type
-        member_count: gm.group.members[0]?.count ?? 0, // Supabase wraps count in array
+        member_count: gm.group.members[0]?.count ?? 0,
       })) ?? [];
 
     return {
       data: groups,
-      count: groups.length, // total groups this user is in
+      count: totalCount ?? 0,
+      hasMore: groups.length === limit, // ✅ Add this line
       error: null,
     };
   },
@@ -364,6 +352,7 @@ export const groupService = {
   },
 
   // Get posts for a specific group
+
   async getGroupPosts(groupId: string, page = 0, limit = 10) {
     const query = supabase
       .from("posts")
@@ -401,7 +390,8 @@ export const groupService = {
     `
       )
       .eq("group_id", groupId)
-      .order("created_at", { ascending: false }) // latest first
+      .order("is_pinned", { ascending: false }) // Pinned posts first (true comes before false)
+      .order("created_at", { ascending: false }) // Then by newest first
       .range(page * limit, (page + 1) * limit - 1);
 
     const { data, error } = await query;

@@ -607,7 +607,7 @@ export const postService = {
     if (error) throw error;
     return data;
   },
-
+  
   async unpinPost(postId: string) {
     const { data, error } = await supabase
       .from("posts")
