@@ -149,16 +149,28 @@ export function useRealtimeChat({
   }, [roomName, currentUserId, queryClient]);
 
   // 3️⃣ Send message with files
+
   const sendMessage = useCallback(
     async (content: string, files: File[] = []) => {
       if (!content.trim() && files.length === 0) return;
 
       try {
+        // 🆕 Generate signed URLs for files before sending
+        let attachmentsWithSignedUrls: FileAttachment[] = [];
+        if (files.length > 0) {
+          attachmentsWithSignedUrls = await Promise.all(
+            files.map((file) =>
+              chatService.uploadFile(file, roomName, currentUserId)
+            )
+          );
+        }
+
         const { data, error } = await chatService.sendMessage(
           currentUserId,
-          actualOtherUserId, // For self-chat, this will be the same as currentUserId
+          actualOtherUserId,
           content,
-          files
+          [], // Pass empty files array since we already uploaded them
+          attachmentsWithSignedUrls // Pass the pre-uploaded attachments
         );
 
         if (error) {
@@ -166,12 +178,12 @@ export function useRealtimeChat({
           return;
         }
 
-        // Optimistic update
+        // Optimistic update with signed URLs
         const newMsg: ChatMessage = {
           id: (data as any)?.[0]?.id ?? Math.random().toString(),
           content,
           createdAt: new Date().toISOString(),
-          attachments: (data as any)?.[0]?.attachments || [],
+          attachments: attachmentsWithSignedUrls, // Use the signed URLs
           user: { name: username },
         };
 

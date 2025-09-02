@@ -68,12 +68,15 @@ export const chatService = {
     senderId: string,
     receiverId: string,
     content: string,
-    files: File[] = []
+    files: File[] = [],
+    preUploadedAttachments: FileAttachment[] = [] // 🆕 New parameter
   ) {
     const roomName = this.getRoomName(senderId, receiverId);
 
-    let attachments: FileAttachment[] = [];
-    if (files.length > 0) {
+    let attachments: FileAttachment[] = preUploadedAttachments;
+
+    // Only upload files if not already provided as pre-uploaded
+    if (files.length > 0 && preUploadedAttachments.length === 0) {
       attachments = await Promise.all(
         files.map((file) => this.uploadFile(file, roomName, senderId))
       );
@@ -123,16 +126,13 @@ export const chatService = {
 
     if (uploadError) throw uploadError;
 
-    // Get public URL
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("chat-files").getPublicUrl(fileName);
-
+    // 🆕 Get signed URL instead of public URL
+    const signedUrl = await getSignedAttachmentUrl(fileName, 3600);
     return {
       name: file.name,
       type: file.type,
       size: file.size,
-      url: publicUrl,
+      url: signedUrl || "", // Use signed URL
       key: fileName,
     };
   },
@@ -241,7 +241,7 @@ export const chatService = {
       attachments: attachmentsWithSignedUrls,
     };
   },
-  
+
   // 🆕 Fetch messages with signed attachment URLs
   async fetchMessages(userId1: string, userId2: string) {
     const roomName = this.getRoomName(userId1, userId2);
