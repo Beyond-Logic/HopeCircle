@@ -63,9 +63,9 @@ export function Notifications() {
       case "user":
         return `/profile/${notification.related_entity_id}`;
       case "post":
-        return `/post/${notification.related_entity_id}`;
+        return `/post/${notification.related_entity_id}/?showComments=true#showComments`;
       case "comment":
-        return `/post/${notification.related_entity_id}`;
+        return `/post/${notification.related_entity_id}?showComments=true#showComments`;
       case "group":
         // For group join notifications, link directly to the group members page
         if (notification.type === "group_join") {

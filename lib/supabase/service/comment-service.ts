@@ -146,6 +146,41 @@ export const commentService = {
     return { data, error };
   },
 
+  // Add this method to your commentService object
+  async getCommentById(commentId: string) {
+    const { data, error } = await supabase
+      .from("comments")
+      .select(
+        `
+      *,
+      author:users!author_id(id, username, first_name, last_name, avatar_url),
+      post_id
+    `
+      )
+      .eq("id", commentId)
+      .single();
+
+    if (error) return { data: null, error };
+
+    // Add avatar preview
+    let author_avatar_preview = null;
+    if (data.author?.avatar_url) {
+      author_avatar_preview = await authService.getAvatarUrl(
+        data.author.avatar_url
+      );
+    }
+
+    const commentWithAvatar = {
+      ...data,
+      author: {
+        ...data.author,
+        avatar_preview: author_avatar_preview,
+      },
+    };
+
+    return { data: commentWithAvatar, error: null };
+  },
+
   // Update a comment
   async updateComment(commentId: string, content: string) {
     const { data, error } = await supabase
