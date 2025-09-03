@@ -58,6 +58,7 @@ export function useCreateGroupMutation() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["userGroups"] });
       router.push(`/groups/${data.id}`);
     },
     onError: (err) => {
