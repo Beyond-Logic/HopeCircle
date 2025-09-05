@@ -358,7 +358,7 @@ export const authService = {
     bio?: string;
     avatar_url?: string;
     role?: string;
-    show_real_name: boolean;
+    show_real_name?: boolean;
     name_change_count?: number;
     last_name_change?: string;
     username_change_count?: number;
@@ -389,7 +389,7 @@ export const authService = {
         country: profileData.country,
         bio: profileData.bio,
         avatar_url: profileData.avatar_url,
-        show_real_name: profileData.show_real_name,
+        show_real_name: profileData.show_real_name || true,
         updated_at: new Date().toISOString(),
       };
 
