@@ -51,6 +51,7 @@ export function Onboarding() {
         ...data,
         id: user.id,
         role: "user",
+        show_real_name: true,
       });
 
       router.push("/feed");
