@@ -14,6 +14,11 @@ export interface UserProfile {
   role: string;
   created_at: string;
   updated_at: string;
+  show_real_name: boolean;
+  name_change_count: number;
+  last_name_change: string;
+  username_change_count: number;
+  last_username_change: string
 }
 
 // Example combined return from getCurrentUser

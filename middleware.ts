@@ -56,6 +56,7 @@ export default async function middleware(req: NextRequest) {
     profile &&
     profile.first_name &&
     profile.last_name &&
+    profile.username &&
     profile.genotype &&
     profile.country &&
     profile.role;

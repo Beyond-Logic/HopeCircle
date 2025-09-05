@@ -25,6 +25,7 @@ interface LikeUser {
   genotype: string;
   country: string;
   avatar_preview?: string;
+  show_real_name?: boolean;
 }
 
 export interface LikeInfo {
@@ -63,15 +64,15 @@ export function LikesDisplay({ likes }: LikesDisplayProps) {
   const followedLikes = otherLikes.filter((like) => isFollowing(like.user.id));
 
   // Format the like text based on who liked it (Instagram style)
-
-  // Format the like text based on who liked it (Instagram style)
-
-  // Format the like text based on who liked it (Instagram style)
   const getLikeText = () => {
     // Get non-followed users from other likes
     const nonFollowedLikes = otherLikes.filter(
       (like) => !isFollowing(like.user.id)
     );
+
+    const getUserDisplayName = (user: LikeUser) => {
+      return user.show_real_name ? user.first_name : user.username;
+    };
 
     if (likes.length === 1) {
       if (currentUserLike) {
@@ -80,7 +81,7 @@ export function LikesDisplay({ likes }: LikesDisplayProps) {
       // For single like from someone else
       const singleLike = likes[0];
       if (isFollowing(singleLike.user.id)) {
-        return `${singleLike.user.first_name} liked this`;
+        return `${getUserDisplayName(singleLike.user)} liked this`;
       }
       // For single like from someone not followed
       return "1 like";
@@ -91,20 +92,24 @@ export function LikesDisplay({ likes }: LikesDisplayProps) {
         // You + 1 other (show name if followed, otherwise just "1 other")
         const otherLike = otherLikes[0];
         if (isFollowing(otherLike.user.id)) {
-          return `You and ${otherLike.user.first_name} liked this`;
+          return `You and ${getUserDisplayName(otherLike.user)} liked this`;
         }
         return "You and 1 other liked this";
       }
       // Two others (show names if followed, otherwise just "2 others")
-      const firstFollowed = isFollowing(likes[0].user.id);
-      const secondFollowed = isFollowing(likes[1].user.id);
+      const firstLike = likes[0];
+      const secondLike = likes[1];
+      const firstFollowed = isFollowing(firstLike.user.id);
+      const secondFollowed = isFollowing(secondLike.user.id);
 
       if (firstFollowed && secondFollowed) {
-        return `${likes[0].user.first_name} and ${likes[1].user.first_name} liked this`;
+        return `${getUserDisplayName(firstLike.user)} and ${getUserDisplayName(
+          secondLike.user
+        )} liked this`;
       } else if (firstFollowed) {
-        return `${likes[0].user.first_name} and 1 other liked this`;
+        return `${getUserDisplayName(firstLike.user)} and 1 other liked this`;
       } else if (secondFollowed) {
-        return `${likes[1].user.first_name} and 1 other liked this`;
+        return `${getUserDisplayName(secondLike.user)} and 1 other liked this`;
       }
       return "2 others liked this";
     }
@@ -119,16 +124,26 @@ export function LikesDisplay({ likes }: LikesDisplayProps) {
         const firstFollowed = followedLikes[0];
         if (followedLikes.length === 1) {
           if (nonFollowedLikes.length === 0) {
-            return `You and ${firstFollowed.user.first_name} liked this`;
+            return `You and ${getUserDisplayName(
+              firstFollowed.user
+            )} liked this`;
           }
-          return `You, ${firstFollowed.user.first_name} and ${nonFollowedLikes.length} others liked this`;
+          return `You, ${getUserDisplayName(firstFollowed.user)} and ${
+            nonFollowedLikes.length
+          } others liked this`;
         }
 
         const secondFollowed = followedLikes[1];
         if (nonFollowedLikes.length === 0) {
-          return `You, ${firstFollowed.user.first_name} and ${secondFollowed.user.first_name} liked this`;
+          return `You, ${getUserDisplayName(
+            firstFollowed.user
+          )} and ${getUserDisplayName(secondFollowed.user)} liked this`;
         }
-        return `You, ${firstFollowed.user.first_name}, ${secondFollowed.user.first_name} and ${nonFollowedLikes.length} others liked this`;
+        return `You, ${getUserDisplayName(
+          firstFollowed.user
+        )}, ${getUserDisplayName(secondFollowed.user)} and ${
+          nonFollowedLikes.length
+        } others liked this`;
       }
 
       // Only others
@@ -138,25 +153,39 @@ export function LikesDisplay({ likes }: LikesDisplayProps) {
 
       if (followedLikes.length === 1) {
         if (nonFollowedLikes.length === 0) {
-          return `${followedLikes[0].user.first_name} liked this`;
+          return `${getUserDisplayName(followedLikes[0].user)} liked this`;
         }
-        return `${followedLikes[0].user.first_name} and ${nonFollowedLikes.length} others liked this`;
+        return `${getUserDisplayName(followedLikes[0].user)} and ${
+          nonFollowedLikes.length
+        } others liked this`;
       }
 
       if (followedLikes.length === 2) {
         if (nonFollowedLikes.length === 0) {
-          return `${followedLikes[0].user.first_name} and ${followedLikes[1].user.first_name} liked this`;
+          return `${getUserDisplayName(
+            followedLikes[0].user
+          )} and ${getUserDisplayName(followedLikes[1].user)} liked this`;
         }
-        return `${followedLikes[0].user.first_name}, ${followedLikes[1].user.first_name} and ${nonFollowedLikes.length} others liked this`;
+        return `${getUserDisplayName(
+          followedLikes[0].user
+        )}, ${getUserDisplayName(followedLikes[1].user)} and ${
+          nonFollowedLikes.length
+        } others liked this`;
       }
 
       // More than 2 followed users, show first 2
       if (nonFollowedLikes.length === 0) {
-        return `${followedLikes[0].user.first_name}, ${
-          followedLikes[1].user.first_name
-        } and ${followedLikes.length - 2} others liked this`;
+        return `${getUserDisplayName(
+          followedLikes[0].user
+        )}, ${getUserDisplayName(followedLikes[1].user)} and ${
+          followedLikes.length - 2
+        } others liked this`;
       }
-      return `${followedLikes[0].user.first_name}, ${followedLikes[1].user.first_name} and ${nonFollowedLikes.length} others liked this`;
+      return `${getUserDisplayName(
+        followedLikes[0].user
+      )}, ${getUserDisplayName(followedLikes[1].user)} and ${
+        nonFollowedLikes.length
+      } others liked this`;
     }
 
     return "";
@@ -170,9 +199,12 @@ export function LikesDisplay({ likes }: LikesDisplayProps) {
     return isCurrentUserFollowing && isUserFollowingCurrent;
   };
 
+  
   // Get full user name
   const getUserName = (user: LikeUser) => {
-    return `${user.first_name} ${user.last_name}`.trim();
+    return user.show_real_name
+      ? `${user.first_name} ${user.last_name}`.trim()
+      : user.username;
   };
 
   return (

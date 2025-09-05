@@ -51,7 +51,7 @@ export const userService = {
     const { data: users, error: userError } = await supabase
       .from("users")
       .select(
-        "id, first_name, last_name, username, avatar_url, country, genotype"
+        "id, first_name, last_name, username, avatar_url, country, genotype, show_real_name"
       )
       .in("id", followerIds);
 
@@ -73,7 +73,7 @@ export const userService = {
     const { data: users, error: usersError } = await supabase
       .from("users")
       .select(
-        "id, first_name, last_name, username, avatar_url, country, genotype"
+        "id, first_name, last_name, username, avatar_url, country, genotype, show_real_name"
       )
       .in("id", followingIds);
 

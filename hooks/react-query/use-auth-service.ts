@@ -10,14 +10,15 @@ export function useCurrentUserProfile() {
   return useQuery({
     queryKey: ["profile", "me"],
     queryFn: async () => {
-      const res = await authService.getCurrentUser();
-      if (!res.profile)
+      const user = await authService.getCurrentUser();
+      if (!user.profile)
         throw new Error(
-          res.error && typeof res.error === "object" && "message" in res.error
-            ? res.error.message
-            : res.error || "User not found"
+          user.error && typeof user.error === "object" && "message" in user.error
+            ? user.error.message
+            : user.error || "User not found"
         );
-      return res;
+      console.log("user", user)  
+      return user;
     },
     staleTime: 1000 * 60 * 5,
     retry: 1,

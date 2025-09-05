@@ -85,6 +85,7 @@ interface Post {
     avatar: string | null;
     username: string;
     avatar_preview: string;
+    show_real_name: string;
   };
   content: string;
   images?: string[];
@@ -763,7 +764,9 @@ PostCardProps) {
                   href={`/profile/${post.author.username}`}
                   className="font-semibold hover:underline"
                 >
-                  {post.author.name}
+                  {post.author.show_real_name
+                    ? post.author.name
+                    : post.author.username}
                   {isGroup && isAdmin ? (
                     <GroupRoleBadge role={member?.role} />
                   ) : (
@@ -958,7 +961,7 @@ PostCardProps) {
                               .toLowerCase()
                               .includes(tagQuery.toLowerCase())
                         )
-                        .map((user) => (
+                        .map((user: any) => (
                           <button
                             key={user.id}
                             type="button"
@@ -967,9 +970,15 @@ PostCardProps) {
                           >
                             <AtSign className="w-4 h-4" />
                             <div>
-                              <div className="font-medium">
-                                {user.first_name} {user.last_name}
-                              </div>
+                              {user?.show_real_name ? (
+                                <div className="font-medium">
+                                  {user.first_name} {user.last_name}
+                                </div>
+                              ) : (
+                                <div className="font-medium">
+                                  {user.username}
+                                </div>
+                              )}
                               <div className="text-xs text-muted-foreground">
                                 {user.genotype} • {user.country}
                               </div>
@@ -1266,7 +1275,6 @@ PostCardProps) {
                   comments.map((comment) => {
                     const isLiked =
                       comment.likes?.some(
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         (like: any) => like.user.id === currentUserId
                       ) || false;
 
@@ -1324,10 +1332,16 @@ PostCardProps) {
                             ) : (
                               <div className="bg-muted rounded-lg p-3 pt-0">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <span className="font-semibold text-sm">
-                                    {comment.author.first_name}{" "}
-                                    {comment.author.last_name}
-                                  </span>
+                                  {comment.author.show_real_name ? (
+                                    <span className="font-semibold text-sm">
+                                      {comment.author.first_name}{" "}
+                                      {comment.author.last_name}
+                                    </span>
+                                  ) : (
+                                    <span className="font-semibold text-sm">
+                                      {comment.author.username}
+                                    </span>
+                                  )}
                                   <span className="text-xs text-muted-foreground">
                                     {new Date(
                                       comment.updated_at
@@ -1493,10 +1507,17 @@ PostCardProps) {
                                             ) : (
                                               <div className="bg-muted rounded-lg p-2">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                  <span className="font-semibold text-xs">
-                                                    {reply.author.first_name}{" "}
-                                                    {reply.author.last_name}
-                                                  </span>
+                                                  {reply.author
+                                                    .show_real_name ? (
+                                                    <span className="font-semibold text-[10px]">
+                                                      {reply.author.first_name}{" "}
+                                                      {reply.author.last_name}
+                                                    </span>
+                                                  ) : (
+                                                    <span className="font-semibold text-[10px]">
+                                                      {reply.author.username}
+                                                    </span>
+                                                  )}
                                                   <span className="text-[10px] text-muted-foreground">
                                                     {new Date(
                                                       reply.updated_at

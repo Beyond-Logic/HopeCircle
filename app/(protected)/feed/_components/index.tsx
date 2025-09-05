@@ -69,6 +69,7 @@ export function Feed() {
           avatar: post.author.avatar_url || null,
           username: post.author.username,
           avatar_preview: post.author.avatar_preview,
+          show_real_name: post.author.show_real_name,
         },
         content: post.content,
         images: post.images || [],
