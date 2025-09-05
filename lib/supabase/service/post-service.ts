@@ -149,18 +149,18 @@ export const postService = {
       `
     *,
     author:users!author_id(
-      id, first_name, username, last_name, avatar_url, genotype, country
+      id, first_name, username, last_name, avatar_url, genotype, country, show_real_name, name_change_count, last_name_change, username_change_count, last_username_change
     ),
     group:groups(id, name, type),
     post_likes(
       user:users!user_id(
-        id, first_name, last_name, username, avatar_url
+        id, first_name, last_name, username, avatar_url, show_real_name, name_change_count, last_name_change, username_change_count, last_username_change
       )
     ),
     comments(count),
     post_tags(
       tagged_user:users!tagged_user_id(
-        id, first_name, last_name, username, avatar_url
+        id, first_name, last_name, username, avatar_url, show_real_name, name_change_count, last_name_change, username_change_count, last_username_change
       )
     )
   `
@@ -290,10 +290,10 @@ export const postService = {
       .select(
         `
       *,
-      author:users!author_id(id, first_name, last_name, avatar_url, genotype, country),
+      author:users!author_id(id, first_name, last_name, avatar_url, genotype, country, show_real_name, name_change_count, last_name_change, username_change_count, last_username_change),
       group:groups(id, name, type),
       post_likes(user_id),
-      post_tags(tagged_user:users!tagged_user_id(id, first_name, last_name))
+      post_tags(tagged_user:users!tagged_user_id(id, first_name, last_name, show_real_name, username, name_change_count, last_name_change, username_change_count, last_username_change))
     `
       )
       .single();
@@ -485,18 +485,19 @@ export const postService = {
         last_name,
         avatar_url,
         genotype,
-        country
+        country,
+        show_real_name
       ),
       group:groups(id, name, type),
       post_likes(
         user:users!user_id(
-          id, first_name, last_name, username, avatar_url
+          id, first_name, last_name, username, avatar_url, show_real_name, name_change_count, last_name_change, username_change_count, last_username_change
         )
       ),
       comments(count),
       post_tags(
         tagged_user:users!tagged_user_id(
-          id, first_name, last_name, username, avatar_url
+          id, first_name, last_name, username, avatar_url, show_real_name, name_change_count, last_name_change, username_change_count, last_username_change
         )
       )
     `,

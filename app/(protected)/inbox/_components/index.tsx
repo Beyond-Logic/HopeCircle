@@ -444,12 +444,16 @@ export function Chat() {
                 <div className="font-semibold">
                   {isJustMeUser ? "" : selectedUser.username}
                 </div>
-                {selectedUser.first_name &&
-                  selectedUser.first_name !== "Just Me" && (
-                    <div className="text-sm text-muted-foreground">
-                      {selectedUser.first_name} {selectedUser.last_name}
-                    </div>
-                  )}
+                {selectedUser.show_real_name && (
+                  <>
+                    {selectedUser.first_name &&
+                      selectedUser.first_name !== "Just Me" && (
+                        <div className="text-sm text-muted-foreground">
+                          {selectedUser.first_name} {selectedUser.last_name}
+                        </div>
+                      )}
+                  </>
+                )}
                 {!isJustMeUser && (
                   <div className="text-xs text-muted-foreground">
                     {onlineUsers.has(selectedUser.id) ? (

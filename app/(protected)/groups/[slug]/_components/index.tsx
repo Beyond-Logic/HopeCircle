@@ -354,7 +354,15 @@ export function GroupDetail() {
                           </Avatar>
                           <div className="flex-1">
                             <p className="font-medium">
-                              {member.user.first_name} {member.user.last_name}{" "}
+                              {member.user.show_real_name ? (
+                                <>
+                                  {" "}
+                                  {member.user.first_name}{" "}
+                                  {member.user.last_name}{" "}
+                                </>
+                              ) : (
+                                <> {member.user.username}</>
+                              )}
                               {role && <GroupRoleBadge role={role} />}
                             </p>
                             <p className="text-sm text-muted-foreground">

@@ -78,6 +78,7 @@ export function Profile() {
           avatar: post.author.avatar_url || null,
           username: post.author.username,
           avatar_preview: post.author.avatar_preview,
+          show_real_name: post
         },
         content: post.content,
         images: post.images || [],
@@ -265,8 +266,9 @@ export function Profile() {
               <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                 <div>
                   <h1 className="text-2xl font-bold mb-2">
-                    {profileData.profile.first_name}{" "}
-                    {profileData.profile.last_name}
+                    {profileData.profile.show_real_name
+                      ? `${profileData.profile.first_name} ${profileData.profile.last_name}`
+                      : profileData.profile.username}
                   </h1>
                   <div className="flex flex-wrap items-center gap-4 text-muted-foreground mb-3 text-sm">
                     <Badge variant="outline">

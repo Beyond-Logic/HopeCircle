@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,8 @@ import { toast } from "sonner";
 import { useCurrentUserProfile } from "@/hooks/react-query/use-auth-service";
 import { useUpsertUserProfile } from "@/hooks/react-query/use-upsert-user-profie";
 import { useDeleteAvatarMutation } from "@/hooks/react-query/use-delete-user-avatar";
+import { ProfileValidation } from "@/lib/profile-validation";
+import { Switch } from "@/components/ui/switch";
 
 interface ProfileFormData {
   first_name: string;
@@ -36,6 +38,11 @@ interface ProfileFormData {
   country: string;
   avatar_url: string | null;
   bio: string | null;
+  show_real_name: boolean;
+  name_change_count?: number;
+  last_name_change?: string;
+  username_change_count?: number;
+  last_username_change?: string;
 }
 
 interface PasswordFormData {
@@ -51,6 +58,14 @@ export function Settings() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [avatarChanged, setAvatarChanged] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const [nameChangeDisabled, setNameChangeDisabled] = useState(false);
+  const [usernameChangeDisabled, setUsernameChangeDisabled] = useState(false);
+  const [nameCooldownDays, setNameCooldownDays] = useState(0);
+  const [usernameAvailability, setUsernameAvailability] = useState<{
+    available: boolean;
+    message?: string;
+  }>({ available: true });
 
   const {
     data: currentUserProfileData,
@@ -72,10 +87,87 @@ export function Settings() {
       genotype: profile?.genotype ?? undefined, // ✅ undefined for empty
       country: profile?.country ?? undefined,
       avatar_url: profile?.avatar_url || null,
+      show_real_name: profile?.show_real_name,
+      last_name_change: profile?.last_name_change,
+      last_username_change: profile?.last_username_change,
+      username_change_count: profile?.username_change_count,
+      name_change_count: profile?.name_change_count,
     },
   });
 
   const { reset } = profileForm;
+
+  useEffect(() => {
+    if (profile) {
+      const canChangeName = ProfileValidation.canChangeName(
+        profile.name_change_count,
+        profile.last_name_change ? new Date(profile.last_name_change) : null
+      );
+
+      const canChangeUsername = ProfileValidation.canChangeUsername(
+        profile.username_change_count,
+        profile.last_username_change
+          ? new Date(profile.last_username_change)
+          : null
+      );
+
+      setNameChangeDisabled(!canChangeName);
+      setUsernameChangeDisabled(!canChangeUsername);
+
+      if (!canChangeName) {
+        const cooldown = ProfileValidation.getNameChangeCooldown(
+          profile.last_name_change ? new Date(profile.last_name_change) : null
+        );
+        setNameCooldownDays(cooldown);
+      }
+
+      // You might want to add username cooldown display as well
+      if (!canChangeUsername) {
+        const cooldown = ProfileValidation.getUsernameChangeCooldown(
+          profile.last_username_change
+            ? new Date(profile.last_username_change)
+            : null
+        );
+        // You could set this to a state variable if you want to display it
+        console.log(`Username change cooldown: ${cooldown} days`);
+      }
+    }
+  }, [profile]);
+
+  // Add username availability check
+  const checkUsernameAvailability = useCallback(
+    async (username: string) => {
+      if (username === profile?.username) {
+        setUsernameAvailability({ available: true });
+        return;
+      }
+
+      if (username.length < 3) {
+        setUsernameAvailability({
+          available: false,
+          message: "Username too short",
+        });
+        return;
+      }
+
+      const result = await authService.checkUsernameAvailability(username);
+      setUsernameAvailability(result);
+    },
+    [profile?.username]
+  );
+
+  // Add debounced username check
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const username = profileForm.watch("username");
+      if (username && username.length >= 3) {
+        checkUsernameAvailability(username);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileForm.watch("username"), checkUsernameAvailability]);
 
   // Populate form when profile is loaded
   useEffect(() => {
@@ -95,6 +187,11 @@ export function Settings() {
       genotype: profile?.genotype ?? undefined, // ✅ undefined for empty
       country: profile?.country ?? undefined,
       avatar_url: profile?.avatar_url || null,
+      show_real_name: profile?.show_real_name,
+      name_change_count: profile?.name_change_count,
+      username_change_count: profile?.username_change_count,
+      last_name_change: profile?.last_name_change,
+      last_username_change: profile?.last_username_change,
     });
   }, [profile, profileForm, reset]);
 
@@ -102,45 +199,129 @@ export function Settings() {
 
   const { mutateAsync: upsertUserProfile } = useUpsertUserProfile();
 
-  const onProfileSubmit = async (data: ProfileFormData) => {
-    setIsLoading(true);
-    try {
-      if (!user?.id) throw new Error("User not authenticated");
+ const onProfileSubmit = async (data: ProfileFormData) => {
+   setIsLoading(true);
+   try {
+     if (!user?.id) throw new Error("User not authenticated");
 
-      let avatarUrl = data.avatar_url;
+     // Check username availability
+     if (data.username !== profile?.username) {
+       console.log("Checking username availability for:", data.username);
+       const availability = await authService.checkUsernameAvailability(
+         data.username
+       );
+       console.log("Username availability result:", availability);
 
-      // ✅ Handle avatar upload
-      if (selectedFile) {
-        const fileKey = await authService.uploadAvatar(selectedFile, user.id);
-        const signedUrl = await authService.getAvatarUrl(fileKey);
-        setProfilePreview(signedUrl);
-        avatarUrl = fileKey;
-        setSelectedFile(null); // clear after upload
-      }
+       if (!availability.available) {
+         throw new Error(availability.message || "Username is not available");
+       }
+     }
 
-      // ✅ Use React Query mutation instead of direct call
-      await upsertUserProfile({
-        ...data,
-        id: user.id,
-        bio: data.bio ?? undefined,
-        genotype: data.genotype,
-        country: data.country,
-        avatar_url: avatarUrl ?? undefined,
-      });
+     let avatarUrl = data.avatar_url;
 
-      toast.success("Profile updated successfully!");
-      refetch();
+     if (selectedFile) {
+       const fileKey = await authService.uploadAvatar(selectedFile, user.id);
+       const signedUrl = await authService.getAvatarUrl(fileKey);
+       setProfilePreview(signedUrl);
+       avatarUrl = fileKey;
+       setSelectedFile(null);
+     }
 
-      // ✅ Reset form dirty state and avatar changed flag
-      profileForm.reset({ ...data, avatar_url: avatarUrl });
-      setAvatarChanged(false);
-    } catch (error) {
-      console.error("Profile update error:", error);
-      toast.error((error as Error).message || "Failed to update profile");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+     // Prepare update data with change counts
+     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     const updateData: any = {
+       ...data,
+       id: user.id,
+       bio: data.bio ?? undefined,
+       genotype: data.genotype,
+       country: data.country,
+       avatar_url: avatarUrl ?? undefined,
+       show_real_name: data.show_real_name,
+     };
+
+     // Check for name changes and update counters
+     const nameChanged =
+       data.first_name !== profile?.first_name ||
+       data.last_name !== profile?.last_name;
+
+     const usernameChanged = data.username !== profile?.username;
+
+     console.log(
+       "Name changed:",
+       nameChanged,
+       "Username changed:",
+       usernameChanged
+     );
+
+     if (nameChanged) {
+       updateData.name_change_count = (profile?.name_change_count || 0) + 1;
+       updateData.last_name_change = new Date().toISOString();
+       console.log(
+         "Updating name change count to:",
+         updateData.name_change_count
+       );
+
+       // Record name change in history
+       console.log(
+         "Recording name change from:",
+         profile?.first_name,
+         profile?.last_name,
+         "to:",
+         data.first_name,
+         data.last_name
+       );
+       await authService.recordNameChange(
+         user.id,
+         profile?.first_name || "",
+         data.first_name,
+         profile?.last_name || "",
+         data.last_name
+       );
+     }
+
+     if (usernameChanged) {
+       updateData.username_change_count =
+         (profile?.username_change_count || 0) + 1;
+       updateData.last_username_change = new Date().toISOString();
+       console.log(
+         "Updating username change count to:",
+         updateData.username_change_count
+       );
+
+       // Record username change and reserve old username
+       console.log(
+         "Recording username change from:",
+         profile?.username,
+         "to:",
+         data.username
+       );
+       await authService.recordUsernameChange(
+         user.id,
+         profile?.username || "",
+         data.username
+       );
+
+       // Reserve old username
+       if (profile?.username) {
+         console.log("Reserving old username:", profile.username);
+         await authService.reserveUsername(profile.username, user.id, 30);
+       }
+     }
+
+     console.log("Final update data:", updateData);
+     await upsertUserProfile(updateData);
+
+     toast.success("Profile updated successfully!");
+     refetch();
+     profileForm.reset({ ...data, avatar_url: avatarUrl });
+     setAvatarChanged(false);
+   } catch (error) {
+     console.error("Profile update error:", error);
+     toast.error((error as Error).message || "Failed to update profile");
+   } finally {
+     setIsLoading(false);
+   }
+ };
 
   const onPasswordSubmit = async (data: PasswordFormData) => {
     setIsLoading(true);
@@ -318,7 +499,22 @@ export function Settings() {
                   </div>
                 </div>
 
-                {/* Name Fields */}
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="show-real-name"
+                    checked={profileForm.watch("show_real_name")}
+                    onCheckedChange={(checked) => {
+                      profileForm.setValue("show_real_name", checked, {
+                        shouldDirty: true, // This marks the form as dirty
+                      });
+                    }}
+                  />
+                  <Label htmlFor="show-real-name">
+                    Show my real name to others
+                  </Label>
+                </div>
+
+                {/* Name Fields with restrictions */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="firstName">First Name</Label>
@@ -327,7 +523,19 @@ export function Settings() {
                       {...profileForm.register("first_name", {
                         required: "First name is required",
                       })}
+                      disabled={nameChangeDisabled || isLoading}
                     />
+                    {nameChangeDisabled ? (
+                      <p className="text-sm text-amber-600 mt-1">
+                        Name changes are limited to once in 90 days
+                        <br />
+                        {nameCooldownDays} days left.
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Name changes are limited to once in 90 days
+                      </p>
+                    )}
                     {profileForm.formState.errors.first_name && (
                       <p className="text-sm text-destructive mt-1">
                         {profileForm.formState.errors.first_name.message}
@@ -341,22 +549,17 @@ export function Settings() {
                       {...profileForm.register("last_name", {
                         required: "Last name is required",
                       })}
+                      disabled={nameChangeDisabled || isLoading}
                     />
-                    {profileForm.formState.errors.last_name && (
-                      <p className="text-sm text-destructive mt-1">
-                        {profileForm.formState.errors.last_name.message}
-                      </p>
-                    )}
                   </div>
                 </div>
 
-                {/* Username */}
+                {/* Username Field with availability indicator */}
                 <div>
                   <Label htmlFor="username">Username</Label>
                   <Input
                     id="username"
                     type="text"
-                    // placeholder="Username"
                     {...profileForm.register("username", {
                       required: "Username is required",
                       minLength: {
@@ -369,7 +572,30 @@ export function Settings() {
                           "Username can only contain letters, numbers, and underscores",
                       },
                     })}
+                    disabled={usernameChangeDisabled || isLoading}
                   />
+                  {usernameChangeDisabled ? (
+                    <p className="text-sm text-amber-600 mt-1">
+                      Username changes are limited to 3 per year. <br /> Please
+                      contact support if you need to change it.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Your username can be changed up to 
+                      {3 - profile.username_change_count} times per year.
+                    </p>
+                  )}
+                  {usernameAvailability.message && (
+                    <p
+                      className={`text-sm mt-1 ${
+                        usernameAvailability.available
+                          ? "text-green-600"
+                          : "text-destructive"
+                      }`}
+                    >
+                      {usernameAvailability.message}
+                    </p>
+                  )}
                   {profileForm.formState.errors.username && (
                     <p className="text-sm text-destructive mt-1">
                       {profileForm.formState.errors.username.message}
@@ -442,7 +668,8 @@ export function Settings() {
                   type="submit"
                   disabled={
                     isLoading ||
-                    (!profileForm.formState.isDirty && !avatarChanged)
+                    (!profileForm.formState.isDirty && !avatarChanged) ||
+                    !usernameAvailability.available
                   }
                 >
                   {isLoading ? "Saving..." : "Save Changes"}

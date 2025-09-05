@@ -69,10 +69,10 @@ export const groupService = {
       let query = supabase.from("groups").select(
         `
       *,
-      creator:users!created_by(id, first_name, last_name, username, avatar_url),
+      creator:users!created_by(id, first_name, last_name, username, avatar_url, show_real_name),
       group_members!group_members_group_id_fkey(
         user:users!group_members_user_id_fkey(
-          id, first_name, last_name, username, avatar_url, genotype, country
+          id, first_name, last_name, username, avatar_url, genotype, country, show_real_name
         ),
         joined_at
       )
@@ -366,7 +366,8 @@ export const groupService = {
         last_name,
         avatar_url,
         genotype,
-        country
+        country,
+        show_real_name
       ),
       post_likes(
         user:users!user_id(
@@ -374,7 +375,8 @@ export const groupService = {
           first_name,
           last_name,
           username,
-          avatar_url
+          avatar_url,
+          show_real_name
         )
       ),
       comments(count),
@@ -384,7 +386,8 @@ export const groupService = {
           first_name,
           last_name,
           username,
-          avatar_url
+          avatar_url,
+          show_real_name
         )
       )
     `

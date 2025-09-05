@@ -105,6 +105,180 @@ export const authService = {
     };
   },
 
+  async checkUsernameAvailability(
+    username: string
+  ): Promise<{ available: boolean; message?: string }> {
+    try {
+      // Check if username is in use
+      const { data: existingUser, error: userError } = await supabase
+        .from("users")
+        .select("id")
+        .ilike("username", username)
+        .maybeSingle();
+
+      if (userError) {
+        console.error("Error checking username:", userError);
+        return {
+          available: false,
+          message: "Error checking username availability",
+        };
+      }
+
+      // If existingUser is not null, it means a user was found
+      if (existingUser) {
+        return { available: false, message: "Username is already taken" };
+      }
+
+      // Check if username is reserved
+      const { data: reservedUsername, error: reservedError } = await supabase
+        .from("reserved_usernames")
+        .select("username")
+        .ilike("username", username)
+        .gt("reserved_until", new Date().toISOString())
+        .maybeSingle();
+
+      if (reservedError) {
+        console.error("Error checking reserved username:", reservedError);
+        return {
+          available: false,
+          message: "Error checking username availability",
+        };
+      }
+
+      // If reservedUsername is not null, it means the username is reserved
+      if (reservedUsername) {
+        return {
+          available: false,
+          message: "Username is temporarily reserved",
+        };
+      }
+
+      return { available: true };
+    } catch (error) {
+      console.error("Unexpected error in checkUsernameAvailability:", error);
+      return {
+        available: false,
+        message: "Unexpected error checking username availability",
+      };
+    }
+  },
+
+  async reserveUsername(
+    username: string,
+    userId: string,
+    days: number = 30
+  ): Promise<void> {
+    try {
+      const reservedUntil = new Date();
+      reservedUntil.setDate(reservedUntil.getDate() + days);
+
+      const { error } = await supabase.from("reserved_usernames").upsert(
+        {
+          username: username.toLowerCase(),
+          user_id: userId,
+          reserved_until: reservedUntil.toISOString(),
+        },
+        {
+          onConflict: "username",
+        }
+      );
+
+      if (error) {
+        console.error("Error reserving username:", error);
+        throw new Error(`Failed to reserve username: ${error.message}`);
+      }
+
+      console.log(
+        `Successfully reserved username: ${username} until ${reservedUntil}`
+      );
+    } catch (error) {
+      console.error("Failed to reserve username:", error);
+      throw error;
+    }
+  },
+
+  async recordUsernameChange(
+    userId: string,
+    oldUsername: string,
+    newUsername: string
+  ): Promise<void> {
+    try {
+      const { error } = await supabase.from("username_history").insert({
+        user_id: userId,
+        old_username: oldUsername,
+        new_username: newUsername,
+        changed_by: userId,
+      });
+
+      if (error) {
+        console.error("Error recording username change:", error);
+        throw new Error(`Failed to record username change: ${error.message}`);
+      }
+
+      console.log(
+        `Successfully recorded username change from ${oldUsername} to ${newUsername}`
+      );
+    } catch (error) {
+      console.error("Failed to record username change:", error);
+      throw error;
+    }
+  },
+
+  async recordNameChange(
+    userId: string,
+    oldFirstName: string,
+    newFirstName: string,
+    oldLastName: string,
+    newLastName: string
+  ): Promise<void> {
+    try {
+      const { error } = await supabase.from("name_history").insert({
+        user_id: userId,
+        old_first_name: oldFirstName,
+        new_first_name: newFirstName,
+        old_last_name: oldLastName,
+        new_last_name: newLastName,
+        changed_by: userId,
+      });
+
+      if (error) {
+        console.error("Error recording name change:", error);
+        throw new Error(`Failed to record name change: ${error.message}`);
+      }
+
+      console.log(`Successfully recorded name change for user ${userId}`);
+    } catch (error) {
+      console.error("Failed to record name change:", error);
+      throw error;
+    }
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getNameHistory(userId: string): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from("name_history")
+        .select("*")
+        .eq("user_id", userId)
+        .order("changed_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching name history:", error);
+        throw new Error(`Failed to fetch name history: ${error.message}`);
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error("Failed to fetch name history:", error);
+      return [];
+    }
+  },
+
+  async cleanupExpiredReservations(): Promise<void> {
+    await supabase
+      .from("reserved_usernames")
+      .delete()
+      .lt("reserved_until", new Date().toISOString());
+  },
   // inside authService
   async getUserById(id: string) {
     if (!id) {
@@ -135,6 +309,7 @@ export const authService = {
       status: profile.status,
       created_at: profile.created_at,
       updated_at: profile.updated_at,
+      show_real_name: profile.show_real_name,
     };
 
     return {
@@ -171,6 +346,8 @@ export const authService = {
   },
 
   // Create or update user profile
+
+  // lib/supabase/service/auth-service.ts
   async upsertUserProfile(profileData: {
     id: string;
     username: string;
@@ -181,9 +358,14 @@ export const authService = {
     bio?: string;
     avatar_url?: string;
     role?: string;
+    show_real_name: boolean;
+    name_change_count?: number;
+    last_name_change?: string;
+    username_change_count?: number;
+    last_username_change?: string;
   }) {
     try {
-      // Update auth metadata FIRST
+      // Update auth metadata
       const { error: authError } = await supabase.auth.updateUser({
         data: {
           first_name: profileData.first_name,
@@ -194,26 +376,41 @@ export const authService = {
 
       if (authError) {
         console.error("Auth metadata update failed:", authError);
-        // You might choose to continue or throw here
       }
 
-      // Then update the custom users table
+      // Prepare the update object
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updateObject: any = {
+        id: profileData.id,
+        username: profileData.username,
+        first_name: profileData.first_name,
+        last_name: profileData.last_name,
+        genotype: profileData.genotype,
+        country: profileData.country,
+        bio: profileData.bio,
+        avatar_url: profileData.avatar_url,
+        show_real_name: profileData.show_real_name,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Only include these fields if they're provided
+      if (profileData.name_change_count !== undefined) {
+        updateObject.name_change_count = profileData.name_change_count;
+      }
+      if (profileData.last_name_change !== undefined) {
+        updateObject.last_name_change = profileData.last_name_change;
+      }
+      if (profileData.username_change_count !== undefined) {
+        updateObject.username_change_count = profileData.username_change_count;
+      }
+      if (profileData.last_username_change !== undefined) {
+        updateObject.last_username_change = profileData.last_username_change;
+      }
+
+      // Update the custom users table
       const { data, error } = await supabase
         .from("users")
-        .upsert(
-          {
-            id: profileData.id,
-            username: profileData.username,
-            first_name: profileData.first_name,
-            last_name: profileData.last_name,
-            genotype: profileData.genotype,
-            country: profileData.country,
-            role: profileData.role,
-            bio: profileData.bio,
-            avatar_url: profileData.avatar_url,
-          },
-          { onConflict: "id" }
-        )
+        .upsert(updateObject, { onConflict: "id" })
         .select()
         .single();
 
