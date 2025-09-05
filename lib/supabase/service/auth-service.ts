@@ -389,7 +389,7 @@ export const authService = {
         country: profileData.country,
         bio: profileData.bio,
         avatar_url: profileData.avatar_url,
-        show_real_name: profileData.show_real_name || true,
+        show_real_name: profileData.show_real_name,
         updated_at: new Date().toISOString(),
       };
 
