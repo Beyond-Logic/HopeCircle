@@ -2,7 +2,7 @@
 
 ## Our Pledge
 
-We pledge to make participation in HopeCircle a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, gender identity and expression, level of experience, nationality, personal appearance, race, religion, or sexual identity and orientation.
+We pledge to make participation in HopeCircle a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, level of experience, nationality, personal appearance, race or religion.
 
 ## Our Standards
 
