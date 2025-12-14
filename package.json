@@ -1,8 +1,8 @@
 {
   "name": "hopecirlce",
   "version": "0.1.0",
-  "description": "An open source community network platform connecting people and fostering meaningful relationships",
-  "keywords": ["community", "social-network", "nextjs", "react", "supabase", "open-source"],
+  "description": "A supportive community platform focused on authentic connections, mutual support, and shared experiences during life's challenges",
+  "keywords": ["support-community", "mental-health", "peer-support", "authentic-connections", "nextjs", "react", "supabase", "open-source", "vulnerability", "empathy"],
   "homepage": "https://www.hopecircle.net",
   "repository": {
     "type": "git",
@@ -12,6 +12,9 @@
     "url": "https://github.com/Beyond-Logic/HopeCircle/issues"
   },
   "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",

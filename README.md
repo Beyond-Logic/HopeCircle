@@ -6,17 +6,18 @@
 
 ## About
 
-HopeCircle is a community-driven social platform built to bring people together, share experiences, and create supportive networks. Built with modern web technologies, it provides a safe space for users to connect, share posts, join groups, and engage in meaningful conversations.
+HopeCircle is a supportive community platform focused on authentic connections rather than popularity. Unlike traditional social networks that emphasize curated perfection, HopeCircle believes in the power of vulnerability and mutual support during life's challenges. The platform brings together people facing similar circumstances—whether dealing with health issues, personal loss, career transitions, or other challenges—to share experiences, resources, and hope in a judgment-free environment.
 
 ## Features
 
-- 🔐 **Secure Authentication** - User registration, login, and profile management
-- 📝 **Posts & Comments** - Share thoughts and engage with the community
-- 👥 **Groups** - Create and join interest-based communities
-- 💬 **Real-time Chat** - Direct messaging and group conversations
-- 🔔 **Notifications** - Stay updated with community activities
-- 📱 **Responsive Design** - Works seamlessly on all devices
-- 🌙 **Dark/Light Mode** - Customizable user experience
+- 🤝 **Community Support** - Connect with others who understand your journey
+- 🛡️ **Safe Space** - Share your story in a judgment-free zone with protective community guidelines
+- 💬 **Authentic Connections** - Build meaningful relationships based on empathy and shared experiences
+- 👥 **Support Groups** - Join communities facing similar life circumstances
+- 📝 **Story Sharing** - Share experiences and resources with vulnerability and authenticity
+- 🔔 **Real-time Support** - Get timely responses and notifications from your community
+- 📱 **Accessible Design** - Works seamlessly across all devices
+- 🔐 **Privacy Focused** - Secure authentication and profile management
 
 ## Tech Stack
 
@@ -30,7 +31,7 @@ HopeCircle is a community-driven social platform built to bring people together,
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 22+ 
 - npm, yarn, pnpm, or bun
 - Supabase account (for backend services)
 
