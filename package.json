@@ -1,7 +1,17 @@
 {
   "name": "hopecirlce",
   "version": "0.1.0",
-  "private": true,
+  "description": "An open source community network platform connecting people and fostering meaningful relationships",
+  "keywords": ["community", "social-network", "nextjs", "react", "supabase", "open-source"],
+  "homepage": "https://www.hopecircle.net",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/hopecirlce.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/hopecirlce/issues"
+  },
+  "license": "MIT",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
