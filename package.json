@@ -6,10 +6,10 @@
   "homepage": "https://www.hopecircle.net",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/hopecirlce.git"
+    "url": "https://github.com/Beyond-Logic/HopeCircle.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/hopecirlce/issues"
+    "url": "https://github.com/Beyond-Logic/HopeCircle/issues"
   },
   "license": "MIT",
   "scripts": {

@@ -6,7 +6,7 @@ Thank you for your interest in contributing to HopeCircle! We welcome contributi
 
 ### Reporting Issues
 
-- Use the [GitHub Issues](https://github.com/yourusername/hopecirlce/issues) page
+- Use the [GitHub Issues](https://github.com/Beyond-Logic/HopeCircle/issues) page
 - Search existing issues before creating a new one
 - Provide clear description and steps to reproduce
 - Include screenshots if applicable
@@ -14,7 +14,7 @@ Thank you for your interest in contributing to HopeCircle! We welcome contributi
 ### Development Setup
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/yourusername/hopecirlce.git`
+2. Clone your fork: `git clone https://github.com/Beyond-Logic/HopeCircle.git`
 3. Install dependencies: `npm install`
 4. Create a branch: `git checkout -b feature/your-feature-name`
 5. Make your changes
@@ -51,7 +51,7 @@ Thank you for your interest in contributing to HopeCircle! We welcome contributi
 
 ### Getting Help
 
-- Join our [GitHub Discussions](https://github.com/yourusername/hopecirlce/discussions)
+- Join our [GitHub Discussions](https://github.com/Beyond-Logic/HopeCircle/discussions)
 - Check existing issues and PRs
 - Ask questions in your PR or issue
 

@@ -38,7 +38,7 @@ HopeCircle is a community-driven social platform built to bring people together,
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/hopecirlce.git
+   git clone https://github.com/Beyond-Logic/HopeCircle.git
    cd hopecirlce
    ```
 
@@ -93,8 +93,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 - 📧 **Email:** support@hopecircle.net
-- 🐛 **Issues:** [GitHub Issues](https://github.com/yourusername/hopecirlce/issues)
-- 💬 **Discussions:** [GitHub Discussions](https://github.com/yourusername/hopecirlce/discussions)
+- 🐛 **Issues:** [GitHub Issues](https://github.com/Beyond-Logic/HopeCircle/issues)
+- 💬 **Discussions:** [GitHub Discussions](https://github.com/Beyond-Logic/HopeCircle/discussions)
 
 ## Acknowledgments
 
